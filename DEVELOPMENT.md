@@ -1,5 +1,29 @@
 # Development validation
 
+## 2026-11-07: Always movable (free move) setting
+
+- New per-character `ForeverBagMoverDB.freeMove` (default off; non-boolean
+  saved values reset to off). Toggle via the Arrange panel's
+  **Always movable** button (new bottom row; panel grew 310 -> 342 px) or
+  `/fbm free [on|off]`. Cannot change in combat.
+- When on and not arranging: title drag handles stay shown but transparent
+  (alpha 0, 0.6 on hover/drag); drops write straight to saved positions and
+  refresh the character snapshot. Snap, Alt-bypass, and Group still apply.
+  Resize grips stay arrange-only. The padlock is replaced by a code-drawn
+  sliders icon that opens/saves the Arrange panel. Arrange mode still drafts;
+  Cancel does not change the setting.
+- Test harness fixes: the suite was failing before this change (mock frames
+  lacked `GetFont`/`SetFont`, and three assertions predated 0.6.0's
+  reset-pins-primary-bag behavior). Added those stubs, updated those
+  assertions, and gave mock textures a `scripts` table.
+- Local: `tests/check_addon.py` passes (run with lupa from `.scale-test-deps`;
+  `.test-deps/lupa` still raises PermissionError), including new free-move
+  regression coverage. TOC file check and `git diff --check` pass.
+- In-game pending: invisible handle does not block anything on the title bar;
+  hover feedback; drag/snap/group in free mode; sliders icon look; panel layout
+  with the new row; reload keeps the setting and positions; combat hiding.
+- Not deployed. No version change (TOC stays 0.6.0).
+
 Bag scaling development change; release version unchanged.
 
 Run `python tests/check_addon.py` with lupa available. Regression coverage includes

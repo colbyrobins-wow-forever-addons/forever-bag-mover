@@ -65,6 +65,15 @@ local function Positions()
     return draftPositions or ForeverBagMoverDB.positions
 end
 
+-- Free move lets bags be dragged without arrange mode; drops save directly.
+local function FreeMove()
+    return ready and ForeverBagMoverDB.freeMove == true
+end
+
+local function CanDrag()
+    return draftPositions ~= nil or FreeMove()
+end
+
 local function CopyPositions(source)
     local result = {}
     for key, position in pairs(source) do
@@ -179,18 +188,33 @@ local function Attach(frame)
         texture:SetColorTexture(r, g, b, 1)
         return texture
     end
-    Part(14, 10, 3, -8, 0.65, 0.40, 0.08)
-    Part(12, 8, 4, -9, 1, 0.80, 0.30)
-    Part(2, 4, 9, -11, 0.15, 0.10, 0.04)
-    Part(10, 2, 5, -2, 1, 0.93, 0.65)
-    Part(2, 7, 13, -2, 1, 0.93, 0.65)
-    toggle.shackle = Part(2, 7, 5, -2, 1, 0.93, 0.65)
+    toggle.lockParts = {
+        Part(14, 10, 3, -8, 0.65, 0.40, 0.08),
+        Part(12, 8, 4, -9, 1, 0.80, 0.30),
+        Part(2, 4, 9, -11, 0.15, 0.10, 0.04),
+        Part(10, 2, 5, -2, 1, 0.93, 0.65),
+        Part(2, 7, 13, -2, 1, 0.93, 0.65),
+        Part(2, 7, 5, -2, 1, 0.93, 0.65),
+    }
+    toggle.shackle = toggle.lockParts[6]
+    -- With free move on, a sliders icon opens the arrange panel instead.
+    toggle.settingsParts = {}
+    for _, bar in ipairs({{-4, 9}, {-9, 4}, {-14, 11}}) do
+        table.insert(toggle.settingsParts, Part(14, 2, 3, bar[1], 1, 0.80, 0.30))
+        table.insert(toggle.settingsParts, Part(4, 4, bar[2] - 1, bar[1] + 1, 1, 0.93, 0.65))
+    end
+    for _, texture in ipairs(toggle.settingsParts) do texture:Hide() end
     local hover = toggle:CreateTexture(nil, "HIGHLIGHT")
     hover:SetAllPoints()
     hover:SetColorTexture(1, 0.85, 0.5, 0.35)
     toggle:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetText(draftPositions and "Save and lock bags" or "Unlock bag movement")
+        if FreeMove() then
+            GameTooltip:SetText(draftPositions and "Save and close arrange panel"
+                or "Arrange bags (presets, layouts, resize)")
+        else
+            GameTooltip:SetText(draftPositions and "Save and lock bags" or "Unlock bag movement")
+        end
         GameTooltip:Show()
     end)
     toggle:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -293,10 +317,31 @@ local function Attach(frame)
     local basePath, baseSize, baseFlags = label:GetFont()
     handle.baseFont = {path = basePath, size = baseSize, flags = baseFlags}
 
+    -- In arrange mode the handle is a visible bar; with free move alone it is
+    -- invisible over the title until hovered, so bags look unmodified.
+    local function UpdateHandleAlpha()
+        if draftPositions then
+            handle:SetAlpha(1)
+        elseif handle.hovered or handle.dragging then
+            handle:SetAlpha(0.6)
+        else
+            handle:SetAlpha(0)
+        end
+    end
+    handle.UpdateAlpha = UpdateHandleAlpha
+    handle:SetScript("OnEnter", function()
+        handle.hovered = true
+        UpdateHandleAlpha()
+    end)
+    handle:SetScript("OnLeave", function()
+        handle.hovered = false
+        UpdateHandleAlpha()
+    end)
+
     local function SavePosition()
         local key = handle.dragKey
         if not key or key ~= GetBagKey(frame) then return end
-        if not draftPositions or InCombatLockdown() then return end
+        if not CanDrag() or InCombatLockdown() then return end
         local x = handle:GetRight() + (handle.rightInset or 30)
         local y = handle:GetTop() + 4
         local bags = VisibleBags()
@@ -307,7 +352,7 @@ local function Attach(frame)
             local result = ForeverBagMoverLayout.Translate(handle.groupStart,
                 x - origin.x, y - origin.y, width, height)
             if result then
-                for bagKey, position in pairs(result) do draftPositions[bagKey] = position end
+                for bagKey, position in pairs(result) do Positions()[bagKey] = position end
             end
             ShowGuides()
         else
@@ -317,7 +362,7 @@ local function Attach(frame)
                     {key = key, x = x, y = y, w = frame:GetWidth() * scale,
                         h = frame:GetHeight() * scale}, bags, width, height, spacing)
             end
-            draftPositions[key] = {x = x, y = y}
+            Positions()[key] = {x = x, y = y}
             ShowGuides(gx, gy)
         end
         for other in pairs(handles) do ApplyPosition(other) end
@@ -332,6 +377,8 @@ local function Attach(frame)
             handle.dragKey = nil
             handle.groupStart = nil
             ShowGuides()
+            -- Free-move drops write saved positions directly; keep the alt copy current.
+            if not draftPositions then RememberCharacter() end
             Refresh()
         end
     end
@@ -425,7 +472,7 @@ local function Attach(frame)
 
     handle:SetScript("OnDragStart", function(self)
         local key = GetBagKey(frame)
-        if draftPositions and key and not InCombatLockdown() then
+        if CanDrag() and key and not InCombatLockdown() then
             handle.resize.StopResize()
             -- Detach visible bags from Blizzard's stack before moving one bag.
             for other in pairs(handles) do
@@ -443,6 +490,7 @@ local function Attach(frame)
             self.groupOrigin = CopyPositions(Positions())[key]
             self.dragKey = key
             self.dragging = true
+            UpdateHandleAlpha()
             self:StartMoving()
         end
     end)
@@ -492,10 +540,11 @@ UpdateHandleGeometry = function(frame, handle)
     else
         grip:Hide()
     end
-    if handle.dragging and (handle.dragKey ~= key or not draftPositions) then
+    if handle.dragging and (handle.dragKey ~= key or not CanDrag()) then
         handle.StopDragging()
     end
-    if draftPositions and not InCombatLockdown() and frame:IsShown() and key and positioned then
+    handle.UpdateAlpha()
+    if CanDrag() and not InCombatLockdown() and frame:IsShown() and key and positioned then
         if not handle.dragging then
             local scale = frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
             local right, top, width = frame:GetRight(), frame:GetTop(), frame:GetWidth()
@@ -504,7 +553,7 @@ UpdateHandleGeometry = function(frame, handle)
                 handle.lastScale, handle.lastRight, handle.lastTop, handle.lastWidth =
                     scale, right, top, width
                 handle:ClearAllPoints()
-                -- Keep dragging clear of the portrait, padlock, and close button.
+                -- Keep dragging clear of the portrait, padlock/settings, and close button.
                 local leftInset = 40 * scale
                 handle.rightInset = (isFirstBag and 52 or 30) * scale
                 local dragWidth = math.max(1, width * scale - leftInset - handle.rightInset)
@@ -540,6 +589,13 @@ Refresh = function()
         local key = GetBagKey(frame)
         if key then ForeverBagMoverFilters.Apply(frame, frame.GetBagID and frame:GetBagID() or frame:GetID()) end
         local isFirstBag = key == "bag0" or key == "combined"
+        local showSettings = FreeMove()
+        for _, texture in ipairs(handle.toggle.lockParts) do
+            if showSettings then texture:Hide() else texture:Show() end
+        end
+        for _, texture in ipairs(handle.toggle.settingsParts) do
+            if showSettings then texture:Show() else texture:Hide() end
+        end
         handle.toggle.shackle:SetHeight(draftPositions and 3 or 7)
         if isFirstBag and frame:IsShown() and not InCombatLockdown() then
             handle.toggle:SetFrameLevel(frame:GetFrameLevel() + 20)
@@ -607,6 +663,7 @@ events:SetScript("OnEvent", function(_, event, name)
                 ForeverBagMoverDB.scales[key] = nil
             end
         end
+        ForeverBagMoverDB.freeMove = ForeverBagMoverDB.freeMove == true
         ForeverBagMoverDB.x = nil
         ForeverBagMoverDB.y = nil
         ready = true
@@ -681,10 +738,27 @@ local function ResetLayout()
     Message("Default layout preview. Choose Done to save or Cancel to restore.")
 end
 
+local freeMoveButton
+
+local function SetFreeMove(enabled)
+    if InCombatLockdown() then
+        Message("Change free move after leaving combat.")
+        return
+    end
+    StopAllDragging()
+    ForeverBagMoverDB.freeMove = enabled and true or false
+    if freeMoveButton then
+        freeMoveButton:SetText(enabled and "Always movable: On" or "Always movable: Off")
+    end
+    Refresh()
+    Message(enabled and "Bags are always movable. Drag a bag's title to move it; it saves when you let go."
+        or "Bags are locked. Use the padlock on the backpack to arrange them.")
+end
+
 local function CreatePanel()
     if panel then return end
     panel = CreateFrame("Frame", "ForeverBagMoverArrangePanel", UIParent)
-    panel:SetSize(340, 310)
+    panel:SetSize(340, 342)
     panel:SetPoint("TOP", UIParent, "TOP", 0, -60)
     panel:SetFrameStrata("DIALOG")
     local background = panel:CreateTexture(nil, "BACKGROUND")
@@ -703,13 +777,13 @@ local function CreatePanel()
     end
     local nameBox = CreateFrame("EditBox", "ForeverBagMoverPresetName", panel, "InputBoxTemplate")
     nameBox:SetSize(198, 24)
-    nameBox:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 18, 246)
+    nameBox:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 18, 278)
     nameBox:SetAutoFocus(false)
     nameBox:SetMaxLetters(40)
     nameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     nameBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     local caption = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    caption:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 12, 273)
+    caption:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 12, 305)
     caption:SetText("Preset name (saving replaces the same name)")
     local presetChoice, characterChoice
     local presetButton, characterButton
@@ -744,28 +818,28 @@ local function CreatePanel()
         presetButton:SetText("Preset: " .. name)
         nameBox:ClearFocus()
         Message("Saved account-wide preset: " .. name)
-    end, 246)
+    end, 278)
     presetButton = AddButton("ForeverBagMoverPresetSelect", "Preset: click to choose", 12, function(self)
         presetChoice = SelectNext(ForeverBagMoverSharedDB.presets, presetChoice)
         self:SetText(presetChoice and ("Preset: " .. presetChoice) or "No saved presets")
         if presetChoice then nameBox:SetText(presetChoice) end
-    end, 214)
+    end, 246)
     presetButton:SetWidth(208)
     AddButton("ForeverBagMoverLoadPreset", "Load preset", 228, function()
         if not presetChoice then Message("Click the preset selector to choose a preset.") return end
         Preview(ForeverBagMoverSharedDB.presets[presetChoice])
-    end, 214)
+    end, 246)
     characterButton = AddButton("ForeverBagMoverCharacterSelect", "Character: click to choose", 12, function(self)
         characterChoice = SelectNext(ForeverBagMoverSharedDB.characters, characterChoice, CharacterKey())
         self:SetText(characterChoice or "No other characters yet")
-    end, 182)
+    end, 214)
     characterButton:SetWidth(208)
     AddButton("ForeverBagMoverCopyCharacter", "Copy layout", 228, function()
         if not characterChoice then Message("Log into an alt with this version, then choose it here.") return end
         Preview(ForeverBagMoverSharedDB.characters[characterChoice])
-    end, 182)
+    end, 214)
     local libraryHint = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    libraryHint:SetPoint("BOTTOM", panel, "BOTTOM", 0, 153)
+    libraryHint:SetPoint("BOTTOM", panel, "BOTTOM", 0, 185)
     libraryHint:SetText("Click selectors to cycle. Presets are shared across characters.")
     local function Arrange(mode)
         if not draftPositions or InCombatLockdown() then return end
@@ -779,29 +853,34 @@ local function CreatePanel()
         for key, position in pairs(result) do draftPositions[key] = position end
         Refresh()
     end
-    AddButton("ForeverBagMoverRow", "Row", 12, function() Arrange("row") end, 108)
-    AddButton("ForeverBagMoverColumn", "Column", 120, function() Arrange("column") end, 108)
-    AddButton("ForeverBagMoverGrid", "Grid", 228, function() Arrange("grid") end, 108)
+    AddButton("ForeverBagMoverRow", "Row", 12, function() Arrange("row") end, 140)
+    AddButton("ForeverBagMoverColumn", "Column", 120, function() Arrange("column") end, 140)
+    AddButton("ForeverBagMoverGrid", "Grid", 228, function() Arrange("grid") end, 140)
     AddButton("ForeverBagMoverSnap", "Snap: On", 12, function(self)
         if InCombatLockdown() then return end
         snapping = not snapping
         self:SetText(snapping and "Snap: On" or "Snap: Off")
         ShowGuides()
-    end, 76)
+    end, 108)
     AddButton("ForeverBagMoverGroup", "Group: Off", 120, function(self)
         if InCombatLockdown() then return end
         StopAllDragging()
         moveGroup = not moveGroup
         self:SetText(moveGroup and "Group: On" or "Group: Off")
-    end, 76)
+    end, 108)
     AddButton("ForeverBagMoverGap", "Gap: 8", 228, function(self)
         if InCombatLockdown() then return end
         spacing = (spacing + 4) % 28
         self:SetText("Gap: " .. spacing)
-    end, 76)
+    end, 108)
     local hint = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hint:SetPoint("BOTTOM", panel, "BOTTOM", 0, 46)
+    hint:SetPoint("BOTTOM", panel, "BOTTOM", 0, 78)
     hint:SetText("Drag a bag corner to resize. Hold Alt to bypass snapping.")
+    freeMoveButton = AddButton("ForeverBagMoverFreeMove",
+        FreeMove() and "Always movable: On" or "Always movable: Off", 12, function()
+            SetFreeMove(not FreeMove())
+        end, 46)
+    freeMoveButton:SetWidth(316)
     AddButton("ForeverBagMoverDone", "Done", 12, function() FinishArrange(true) end)
     AddButton("ForeverBagMoverCancel", "Cancel", 120, function() FinishArrange(false) end)
     AddButton("ForeverBagMoverReset", "Reset layout", 228, ResetLayout)
@@ -819,7 +898,8 @@ BeginArrange = function()
     CreatePanel()
     if OpenAllBags then OpenAllBags() elseif OpenBackpack then OpenBackpack() end
     Refresh()
-    Message("All bags unlocked. Drag their highlighted titles, then click the padlock on the backpack to save.")
+    Message(FreeMove() and "Arrange mode. Drag titles or corners, then choose Done to save."
+        or "All bags unlocked. Drag their highlighted titles, then click the padlock on the backpack to save.")
 end
 
 SLASH_FOREVERBAGMOVER1 = "/fbm"
@@ -834,7 +914,13 @@ SlashCmdList.FOREVERBAGMOVER = function(input)
     elseif command == "reset" then
         BeginArrange()
         ResetLayout()
+    elseif command == "free" or command == "free on" or command == "free off" then
+        if command == "free" then
+            SetFreeMove(not FreeMove())
+        else
+            SetFreeMove(command == "free on")
+        end
     else
-        Message("Commands: /fbm, /fbm done, /fbm cancel, /fbm reset")
+        Message("Commands: /fbm, /fbm done, /fbm cancel, /fbm reset, /fbm free [on|off]")
     end
 end

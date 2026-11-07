@@ -20,6 +20,13 @@ layout. Existing saved positions migrate automatically.
 The single padlock button controls movement for all bags. Other bags never
 show a toggle button.
 
+**Always movable:** turn this on in the Arrange panel (or with `/fbm free on`)
+to drag any bag by its title at any time, without entering Arrange mode. The
+drag area stays invisible until you hover it, and each move saves as soon as you
+let go, so there is no Cancel for these moves. While it is on, the padlock becomes a
+**sliders icon** that opens the Arrange panel for presets, layouts, resizing,
+and reset; those still preview until Done. Dragging is blocked in combat.
+
 Changes are previews until you click the open padlock or Done; reloading without Done discards the preview.
 The panel and highlights hide during combat and return when combat ends.
 Click the **funnel icon** to the left of the backpack/combined-bag search box to choose
@@ -37,7 +44,8 @@ inside the header so it does not overlap the bag stacked above. The drag area
 leaves space for the padlock and the bag's close button. The filter icon sits
 on the search row, opposite Clean Up Bags, and matches its button dimensions.
 
-Commands: `/fbm` (arrange), `/fbm done`, `/fbm cancel`, `/fbm reset`.
+Commands: `/fbm` (arrange), `/fbm done`, `/fbm cancel`, `/fbm reset`,
+`/fbm free` (toggle always movable; also `/fbm free on` / `/fbm free off`).
 Legacy `/fbm unlock` enters Arrange mode and `/fbm lock` saves and exits.
 
 ## Arrange tools (0.4.0)

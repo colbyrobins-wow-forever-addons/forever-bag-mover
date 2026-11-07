@@ -45,12 +45,17 @@ def main() -> None:
         function methods:GetTop() return self.top or 500 end
         function methods:GetBottom() return self.bottom or 504 end
         function methods:GetID() return self.id or 0 end
-        function methods:CreateTexture() return setmetatable({}, {__index = methods}) end
+        function methods:CreateTexture()
+            return setmetatable({scripts = {}, shown = true}, {__index = methods})
+        end
         function methods:CreateFontString() return self end
         function methods:SetHeight(height) self.height = height end
         function methods:SetWidth(width) self.width = width end
         function methods:GetText() return self.text or '' end
         function methods:SetText(text) self.text = text end
+        function methods:GetFont() return 'font', 10, '' end
+        function methods:SetFont(path, size, flags) self.fontSize = size end
+        function methods:SetAlpha(alpha) self.alpha = alpha end
         for _, name in ipairs({'SetSize', 'SetFrameStrata', 'SetMovable',
             'SetClampedToScreen', 'RegisterForDrag', 'SetAllPoints',
             'SetColorTexture', 'ClearAllPoints', 'StartMoving',
@@ -174,7 +179,7 @@ def main() -> None:
         assert(ForeverBagMoverDB.positions.combined.x == 600)
         SlashCmdList.FOREVERBAGMOVER('')
         ForeverBagMoverReset.scripts.OnClick()
-        assert(ContainerFrame1.point[1] == 'DEFAULT')
+        assert(ContainerFrame1.point[4] == 800, 'Reset pins the primary bag where Blizzard placed it')
         ForeverBagMoverCancel.scripts.OnClick()
         assert(ContainerFrame1.point[4] == 900)
         SlashCmdList.FOREVERBAGMOVER('')
@@ -242,7 +247,7 @@ def main() -> None:
         SlashCmdList.FOREVERBAGMOVER('reset')
         assert(ForeverBagMoverDB.positions.bag0.x == 900)
         ForeverBagMoverDone.scripts.OnClick()
-        assert(next(ForeverBagMoverDB.positions) == nil)
+        assert(ForeverBagMoverDB.positions.bag0.x == 800 and ForeverBagMoverDB.positions.bag1 == nil)
     ''')
     runtime.execute('''
         local geometry = ForeverBagMoverLayout
@@ -273,10 +278,10 @@ def main() -> None:
 
         SlashCmdList.FOREVERBAGMOVER('')
         ForeverBagMoverRow.scripts.OnClick()
-        assert(next(ForeverBagMoverDB.positions) == nil, 'Layout must remain a preview')
+        assert(ForeverBagMoverDB.positions.bag0.x == 800, 'Layout must remain a preview')
         assert(ContainerFrame1.point[4] == 210)
         ForeverBagMoverCancel.scripts.OnClick()
-        assert(next(ForeverBagMoverDB.positions) == nil)
+        assert(ForeverBagMoverDB.positions.bag0.x == 800)
         SlashCmdList.FOREVERBAGMOVER('')
         ForeverBagMoverGrid.scripts.OnClick()
         ForeverBagMoverGroup.scripts.OnClick(ForeverBagMoverGroup)
@@ -425,6 +430,91 @@ def main() -> None:
         assert(grip.origin == nil and ContainerFrame1.scale == 1.5)
         combat = false
         ForeverBagMoverCancel.scripts.OnClick()
+    """)
+    runtime.execute("""
+        -- Free move: drag any time outside arrange mode; drops save directly.
+        local handle = frames[4]
+        local events = frames[3]
+        local toggle = handle.toggle
+        assert(ForeverBagMoverDB.freeMove == false, 'Free move defaults off')
+        assert(not handle:IsShown())
+        assert(toggle.lockParts[1]:IsShown() and not toggle.settingsParts[1]:IsShown())
+        SlashCmdList.FOREVERBAGMOVER('free on')
+        assert(ForeverBagMoverDB.freeMove == true)
+        assert(handle:IsShown() and handle.alpha == 0, 'Free-move handle is invisible until hovered')
+        assert(not handle.resize:IsShown(), 'Resize stays limited to arrange mode')
+        assert(not ForeverBagMoverArrangePanel:IsShown())
+        assert(not toggle.lockParts[1]:IsShown() and toggle.settingsParts[1]:IsShown())
+        toggle.scripts.OnEnter(toggle)
+        assert(GameTooltip.text == 'Arrange bags (presets, layouts, resize)')
+        toggle.scripts.OnLeave()
+        handle.scripts.OnEnter(handle)
+        assert(handle.alpha == 0.6)
+        handle.scripts.OnLeave(handle)
+        assert(handle.alpha == 0)
+
+        altDown = true
+        handle.right, handle.top = 1000, 600
+        handle.scripts.OnDragStart(handle)
+        assert(handle.dragging and handle.alpha == 0.6)
+        handle.scripts.OnUpdate(handle)
+        handle.scripts.OnDragStop(handle)
+        altDown = false
+        assert(ForeverBagMoverDB.positions.bag0.x == 1078, 'Free-move drop saves immediately')
+        assert(ForeverBagMoverDB.positions.bag0.y == 604)
+        assert(ContainerFrame1.point[4] == 1078 / 1.5)
+        assert(ForeverBagMoverSharedDB.characters['Tester - Realm'].positions.bag0.x == 1078 / 1920)
+        assert(handle.alpha == 0 and not ForeverBagMoverArrangePanel:IsShown())
+
+        combat = true
+        events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+        assert(not handle:IsShown())
+        handle.scripts.OnDragStart(handle)
+        assert(not handle.dragging, 'Combat blocks free-move dragging')
+        SlashCmdList.FOREVERBAGMOVER('free off')
+        assert(ForeverBagMoverDB.freeMove == true, 'Setting cannot change in combat')
+        combat = false
+        events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
+        assert(handle:IsShown())
+
+        toggle.scripts.OnClick()
+        assert(ForeverBagMoverArrangePanel:IsShown() and handle.alpha == 1)
+        assert(handle.resize:IsShown())
+        assert(ForeverBagMoverFreeMove.text == 'Always movable: On')
+        toggle.scripts.OnEnter(toggle)
+        assert(GameTooltip.text == 'Save and close arrange panel')
+        toggle.scripts.OnLeave()
+        altDown = true
+        handle.right, handle.top = 900, 600
+        handle.scripts.OnDragStart(handle)
+        handle.scripts.OnDragStop(handle)
+        altDown = false
+        assert(ForeverBagMoverDB.positions.bag0.x == 1078, 'Arrange mode still drafts')
+        ForeverBagMoverCancel.scripts.OnClick()
+        assert(ForeverBagMoverDB.freeMove == true, 'Cancel keeps the free-move setting')
+        assert(ContainerFrame1.point[4] == 1078 / 1.5)
+        assert(handle:IsShown() and handle.alpha == 0)
+
+        SlashCmdList.FOREVERBAGMOVER('')
+        ForeverBagMoverFreeMove.scripts.OnClick()
+        assert(ForeverBagMoverDB.freeMove == false)
+        assert(ForeverBagMoverFreeMove.text == 'Always movable: Off')
+        ForeverBagMoverCancel.scripts.OnClick()
+        assert(not handle:IsShown())
+        handle.scripts.OnDragStart(handle)
+        assert(not handle.dragging, 'Locked bags cannot be dragged')
+        assert(toggle.lockParts[1]:IsShown() and not toggle.settingsParts[1]:IsShown())
+        SlashCmdList.FOREVERBAGMOVER('free')
+        assert(ForeverBagMoverDB.freeMove == true, 'Bare /fbm free toggles')
+        SlashCmdList.FOREVERBAGMOVER('free')
+        assert(ForeverBagMoverDB.freeMove == false)
+
+        ForeverBagMoverDB.freeMove = 'yes'
+        events.scripts.OnEvent(events, 'ADDON_LOADED', 'ForeverBagMover')
+        assert(ForeverBagMoverDB.freeMove == false, 'Invalid saved value resets to off')
+        ForeverBagMoverDB.freeMove = true
+        events.scripts.OnEvent(events, 'ADDON_LOADED', 'ForeverBagMover')
+        assert(ForeverBagMoverDB.freeMove == true and handle:IsShown())
     """)
     logging.basicConfig(level=logging.INFO)
     logging.info("Arrange-mode checks passed (mocked WoW APIs).")

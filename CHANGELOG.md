@@ -1,3 +1,10 @@
+# Unreleased
+
+- New **Always movable** setting (Arrange panel or `/fbm free on|off`): drag any
+  bag by its title at any time without entering Arrange mode. The drag area is
+  invisible until hovered, and each drop saves immediately. While it is on, the
+  padlock becomes a sliders button that opens the Arrange panel. Off by default.
+
 # 0.6.0
 
 - Scale the "Drag to move" handle and its label with each bag's individual size.
