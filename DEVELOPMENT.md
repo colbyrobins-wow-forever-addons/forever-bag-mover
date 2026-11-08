@@ -1,5 +1,14 @@
 # Development validation
 
+## 2026-11-07: Release preparation 0.7.0
+
+- User requested a release after confirming the consumable taint fix in-game.
+  Recorded as release authorization; the remaining Always movable in-game
+  checks were not separately reported.
+- Minor version for the new Always movable feature, plus the taint fix.
+  Updated TOC, CHANGELOG, README, CurseForgeDescription.
+- Runtime files match deployed test build 288e3a9 apart from the TOC version.
+
 ## 2026-11-07: Fix blocked consumable use (taint)
 
 - Symptom: right-clicking a consumable in the bags gave an addon-blocked

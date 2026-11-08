@@ -1,4 +1,4 @@
-# Unreleased
+# 0.7.0 - 2026-11-07
 
 - New **Always movable** setting (Arrange panel or `/fbm free on|off`): drag any
   bag by its title at any time without entering Arrange mode. The drag area is

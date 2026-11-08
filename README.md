@@ -86,6 +86,13 @@ layout. Snap, Group, and Gap preferences last for the current UI session.
 - Preset names are case-sensitive and limited to 40 characters. Presets and
   character copies remain independent after loading.
 
+## Always movable and item-use fix (0.7.0)
+
+- New **Always movable** setting (Arrange panel or `/fbm free on|off`): drag
+  any bag by its title at any time; each drop saves immediately. Off by default.
+- Fixed "Interface action failed because of an AddOn" when right-clicking a
+  consumable in the bags.
+
 ## Handle scaling, group resize, and fixes (0.6.0)
 
 - The **Drag to move** handle and its label now scale with each bag's own size.
