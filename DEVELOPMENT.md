@@ -18,6 +18,8 @@
   feature) to `_forever_\Interface\AddOns\ForeverBagMover`; all five files
   SHA-256 verified. Backup: dist/deployment-backups/TaintFix-20261107-205603.
   Version unchanged (0.6.0); in-game acceptance pending.
+- 2026-11-07 in-game: user confirmed consumables no longer give the blocked
+  action message. Other free-move in-game checks remain pending.
 
 ## 2026-11-07: Always movable (free move) setting
 
