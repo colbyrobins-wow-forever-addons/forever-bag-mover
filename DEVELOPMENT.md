@@ -14,6 +14,10 @@
   test now errors if `SetMatchesSearch` is called.
 - In-game pending: right-click food/potion/bandage with each filter selected,
   in and out of combat; category dimming looks right; search box still dims.
+- Deployed commit 288e3a9 (no uncommitted changes; includes the free-move
+  feature) to `_forever_\Interface\AddOns\ForeverBagMover`; all five files
+  SHA-256 verified. Backup: dist/deployment-backups/TaintFix-20261107-205603.
+  Version unchanged (0.6.0); in-game acceptance pending.
 
 ## 2026-11-07: Always movable (free move) setting
 
