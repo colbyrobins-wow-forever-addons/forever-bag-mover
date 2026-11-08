@@ -4,6 +4,9 @@
   bag by its title at any time without entering Arrange mode. The drag area is
   invisible until hovered, and each drop saves immediately. While it is on, the
   padlock becomes a sliders button that opens the Arrange panel. Off by default.
+- Fix "Interface action failed because of an AddOn" when right-clicking a
+  consumable in the bags. Category filters now dim items with their own overlay
+  instead of calling Blizzard's item-button search code, which tainted item use.
 
 # 0.6.0
 

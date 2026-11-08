@@ -11,8 +11,28 @@ filters.options = {
     {label = "Junk", category = "junk", query = ""},
 }
 filters.selected = 1
-local hookedButtons = setmetatable({}, {__mode = "k"})
-local updating = false
+-- Category dimming uses an overlay texture we own. Calling Blizzard's
+-- SetMatchesSearch (or hooking it) from addon code taints the item button's
+-- search/context fields, and the secure right-click path then blocks
+-- UseContainerItem for consumables ("Interface action failed").
+local overlays = setmetatable({}, {__mode = "k"})
+
+local function SetDimmed(button, dimmed)
+    local overlay = overlays[button]
+    if not overlay then
+        if not dimmed then return end
+        overlay = button:CreateTexture(nil, "OVERLAY", nil, 7)
+        overlay:SetAllPoints()
+        overlay:SetColorTexture(0, 0, 0, 0.8)
+        overlays[button] = overlay
+    end
+    if dimmed then overlay:Show() else overlay:Hide() end
+end
+
+function filters.IsDimmed(button)
+    local overlay = overlays[button]
+    return overlay ~= nil and overlay:IsShown()
+end
 
 function filters.Matches(category, info, classID, equipLoc, quest)
     if not category then return true end
@@ -29,14 +49,17 @@ function filters.Matches(category, info, classID, equipLoc, quest)
 end
 
 local function ApplyButton(button, bagID)
-    if not button.SetMatchesSearch or not C_Container then return end
+    local category = filters.options[filters.selected].category
+    if not category or not C_Container then
+        SetDimmed(button, false)
+        return
+    end
     local bag = button.GetBagID and button:GetBagID() or bagID
     if type(bag) ~= "number" or bag < 0 or bag > (NUM_TOTAL_BAG_FRAMES or 5) then return end
     local slot = button:GetID()
     local info = C_Container.GetContainerItemInfo(bag, slot)
-    local category = filters.options[filters.selected].category
     local classID, equipLoc
-    if info and info.itemID and category then
+    if info and info.itemID then
         local getInfo = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
         if getInfo then
             local _, _, _, location, _, itemClass = getInfo(info.itemID)
@@ -45,18 +68,7 @@ local function ApplyButton(button, bagID)
     end
     local quest = category == "quest" and C_Container.GetContainerItemQuestInfo
         and C_Container.GetContainerItemQuestInfo(bag, slot)
-    updating = true
-    button:SetMatchesSearch(not (info and info.isFiltered)
-        and filters.Matches(category, info, classID, equipLoc, quest))
-    updating = false
-    if not hookedButtons[button] then
-        hookedButtons[button] = true
-        hooksecurefunc(button, "SetMatchesSearch", function()
-            if not updating and filters.options[filters.selected].category then
-                ApplyButton(button, bag)
-            end
-        end)
-    end
+    SetDimmed(button, not filters.Matches(category, info, classID, equipLoc, quest))
 end
 
 function filters.Apply(frame, bagID)

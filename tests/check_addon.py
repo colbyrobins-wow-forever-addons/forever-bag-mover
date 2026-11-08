@@ -384,21 +384,21 @@ def main() -> None:
         assert(not filters.Matches('junk', nil))
         local button = CreateFrame()
         button.GetBagID = function() return 0 end
-        button.SetMatchesSearch = function(self, matches) self.matches = matches end
+        button.SetMatchesSearch = function() error('Calling Blizzard SetMatchesSearch taints item use') end
         ContainerFrame1.Items = {button}
         C_Container = {GetContainerItemInfo = function() return info end}
-        filters.selected = 8
-        filters.Apply(ContainerFrame1, 0)
-        assert(button.matches)
-        info.quality = 1
-        button:SetMatchesSearch(true)
-        assert(not button.matches, 'Blizzard updates must retain category filtering')
         filters.selected = 1
         filters.Apply(ContainerFrame1, 0)
-        assert(button.matches, 'All items must restore search matches')
-        info.isFiltered = true
+        assert(not filters.IsDimmed(button), 'All items must not dim or touch buttons')
+        filters.selected = 8
         filters.Apply(ContainerFrame1, 0)
-        assert(not button.matches, 'Native search must remain respected')
+        assert(not filters.IsDimmed(button), 'Junk must stay undimmed')
+        info.quality = 1
+        filters.Apply(ContainerFrame1, 0)
+        assert(filters.IsDimmed(button), 'Non-junk must be dimmed')
+        filters.selected = 1
+        filters.Apply(ContainerFrame1, 0)
+        assert(not filters.IsDimmed(button), 'All items must clear dimming')
     ''')
     runtime.execute("""
         cursorX, cursorY = 800, 200

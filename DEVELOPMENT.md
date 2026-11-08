@@ -1,5 +1,20 @@
 # Development validation
 
+## 2026-11-07: Fix blocked consumable use (taint)
+
+- Symptom: right-clicking a consumable in the bags gave an addon-blocked
+  action message. Cause: `Filters.lua` called Blizzard's
+  `button:SetMatchesSearch()` on every slot each Refresh (even with
+  "All items") and hooked it, so the addon wrote item-button search/context
+  fields and the secure use path then ran tainted.
+- Fix: category dimming now uses an addon-owned overlay texture per button
+  (weak table); Blizzard item-button methods are never called or hooked.
+  "All items" touches nothing. Native search dimming is left to Blizzard.
+- Local: `tests/check_addon.py` passes (lupa from `.scale-test-deps`); filter
+  test now errors if `SetMatchesSearch` is called.
+- In-game pending: right-click food/potion/bandage with each filter selected,
+  in and out of combat; category dimming looks right; search box still dims.
+
 ## 2026-11-07: Always movable (free move) setting
 
 - New per-character `ForeverBagMoverDB.freeMove` (default off; non-boolean
