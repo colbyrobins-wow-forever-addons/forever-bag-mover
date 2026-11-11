@@ -1,3 +1,76 @@
+# Development and release workflow
+
+Develop, check locally, test in game, obtain acceptance, then commit. Release
+versioning and publication are separate requested steps, as in PallySealCooldowns.
+
+## Development cycle
+
+1. Make a focused change and add relevant regression coverage.
+2. From the repository root, run `python tests/check_addon.py` with Lupa
+   available, then `git diff --check`. The harness uses `lupa.lua51` and prepends
+   `.test-deps` to its import path. Local dependencies are never distributed.
+3. Keep feature changes uncommitted while iterating through in-game testing.
+   Record `git rev-parse --short HEAD` and `git status --short` with each test.
+4. Deploy for testing when requested, backing up the existing addon first and
+   verifying copied files against the source. The previously verified target is
+   `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\ForeverBagMover`.
+   Confirm the active client path before future deployment. A source junction is
+   optional and requires a separate request; this setup does not establish one.
+5. Test in Forever 1.60.1 (record the actual build). Reload after Lua edits;
+   restart after adding files or changing the TOC. Check the README's in-game
+   scenarios plus scenarios specific to the change. Fix problems and repeat.
+6. After user acceptance, commit the source, tests, documentation, and required
+   assets together. Keep the release version unchanged until release preparation.
+
+The repository currently has no Docker check wrapper or CI release pipeline.
+Use its existing Python/Lua harness; PallySealCooldowns commands do not apply here.
+Mocked checks cannot establish visual layout, combat safety, or client compatibility.
+
+## Release gate
+
+After the user accepts in-game results and requests release preparation:
+
+1. Choose the version and update `ForeverBagMover/ForeverBagMover.toc`,
+   `CHANGELOG.md`, `README.md`, and `CurseForgeDescription.md` consistently.
+2. Run local checks and compare runtime files with the accepted test build.
+   Changes beyond release metadata require relevant retesting.
+3. Commit release preparation. Create archives under ignored `dist/`, containing
+   only the addon folder and required runtime files. Tags and publication are
+   separate explicit actions; there is no configured publishing automation.
+4. Push or publish only when requested, and record publication separately from
+   preparation. Local Git history is not a remote backup (no remote is configured).
+
+## Current work — 2026-11-10
+
+- Unreleased work: workflow setup only; runtime and TOC version 0.7.0 unchanged.
+- Local verification: documentation references and TOC-listed files checked;
+  see the setup commit for the exact changes. No new in-game testing performed.
+- Pending client checks: Always movable hover/drag/snap/group behavior, title-bar
+  clicks, sliders icon and panel layout, persistence after reload, and combat hiding.
+  Earlier scaling and combined-bag scenarios without explicit acceptance remain
+  pending; see the historical records below.
+- Known unresolved issues: prior `.test-deps/lupa` PermissionError; the historical
+  workaround used `.scale-test-deps`. Do not treat historical results as a fresh run.
+- Acceptance: the consumable taint fix was accepted on 2026-11-07; remaining
+  scenarios were not individually confirmed. The version string alone does not
+  establish what was published.
+
+## Reusable test record
+
+- Date and change:
+- Base Git commit and uncommitted files:
+- Local commands and observed results:
+- Client build, installation path, and deployment/backup identification:
+- In-game scenarios and observed results:
+- Pending cases and known issues:
+- User acceptance (who requested/confirmed what, and when):
+- Release preparation and publication status:
+
+## Historical validation records
+
+The entries below retain their original chronology and claims. Statements about
+an untracked repository describe that earlier state, not the current checkout.
+
 # Development validation
 
 ## 2026-11-07: Release preparation 0.7.0

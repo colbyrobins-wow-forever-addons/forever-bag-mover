@@ -138,3 +138,8 @@ https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_UIPan
 
 Mocked regression checks: `python tests/check_addon.py` (requires lupa, optionally
 installed into `.test-deps`). Visual layout and combat taint need live-client testing.
+
+## Development workflow
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for local checks, in-game acceptance,
+commit timing, and release preparation.
