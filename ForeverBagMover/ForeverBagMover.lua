@@ -585,9 +585,30 @@ local function CreateMinimapButton()
     minimapButton:SetSize(31, 31)
     minimapButton:SetFrameStrata("MEDIUM")
     minimapButton:SetFrameLevel(8)
-    local offset = ((Minimap:GetWidth() or 140) / 2 + 10) * math.cos(math.rad(45))
-    minimapButton:SetPoint("CENTER", Minimap, "CENTER", -offset, -offset)
+    local function Place()
+        local x, y = ForeverBagMoverLayout.MinimapOffset(ForeverBagMoverDB.minimapAngle,
+            (Minimap:GetWidth() or 140) / 2 + 10)
+        minimapButton:ClearAllPoints()
+        minimapButton:SetPoint("CENTER", Minimap, "CENTER", x, y)
+    end
+    Place()
     minimapButton:RegisterForClicks("LeftButtonUp")
+    -- Drag around the minimap edge; the angle saves per character on release.
+    minimapButton:RegisterForDrag("LeftButton")
+    minimapButton:SetScript("OnDragStart", function(self)
+        GameTooltip:Hide()
+        self:SetScript("OnUpdate", function()
+            local centerX, centerY = Minimap:GetCenter()
+            local cursorX, cursorY = GetCursorPosition()
+            local scale = Minimap:GetEffectiveScale()
+            ForeverBagMoverDB.minimapAngle = ForeverBagMoverLayout.MinimapAngle(
+                cursorX / scale - centerX, cursorY / scale - centerY)
+            Place()
+        end)
+    end)
+    minimapButton:SetScript("OnDragStop", function(self)
+        self:SetScript("OnUpdate", nil)
+    end)
     minimapButton:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
     local backdrop = minimapButton:CreateTexture(nil, "BACKGROUND")
     backdrop:SetSize(20, 20)
@@ -611,12 +632,14 @@ local function CreateMinimapButton()
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:SetText("Forever Bag Mover")
         GameTooltip:AddLine("Click to open settings.", 1, 1, 1)
+        GameTooltip:AddLine("Drag to move this button.", 1, 1, 1)
         GameTooltip:Show()
     end)
     minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
     minimapButton:SetScript("OnHide", function(self)
         if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
     end)
+    if ForeverBagMoverDB.hideMinimap then minimapButton:Hide() end
 end
 
 Refresh = function()
@@ -710,6 +733,9 @@ events:SetScript("OnEvent", function(_, event, name)
         end
         ForeverBagMoverDB.freeMove = ForeverBagMoverDB.freeMove == true
         ForeverBagMoverDB.hideButtons = ForeverBagMoverDB.hideButtons == true
+        ForeverBagMoverDB.minimapAngle =
+            ForeverBagMoverLayout.ValidMinimapAngle(ForeverBagMoverDB.minimapAngle)
+        ForeverBagMoverDB.hideMinimap = ForeverBagMoverDB.hideMinimap == true
         ForeverBagMoverDB.x = nil
         ForeverBagMoverDB.y = nil
         ready = true
@@ -802,6 +828,23 @@ local function SetButtonsHidden(hidden)
     Message(hidden
         and "Bag buttons hidden. Use /fbm to arrange bags or /fbm buttons show to restore them."
         or "Bag buttons shown.")
+end
+
+local minimapVisibilityButton
+
+-- The launcher is not a protected frame, so this works in combat too.
+local function SetMinimapHidden(hidden)
+    if not ready then return end
+    ForeverBagMoverDB.hideMinimap = hidden
+    if minimapVisibilityButton then
+        minimapVisibilityButton:SetText(hidden and "Minimap icon: Hidden" or "Minimap icon: Shown")
+    end
+    if minimapButton then
+        if hidden then minimapButton:Hide() else minimapButton:Show() end
+    end
+    Message(hidden
+        and "Minimap icon hidden. Use /fbm to open settings or /fbm minimap show to restore it."
+        or "Minimap icon shown.")
 end
 
 local function SetFreeMove(enabled)
@@ -949,7 +992,12 @@ local function CreatePanel()
         ForeverBagMoverDB.hideButtons and "Bag buttons: Hidden" or "Bag buttons: Shown", 12, function()
             SetButtonsHidden(not ForeverBagMoverDB.hideButtons)
         end, 14)
-    buttonsVisibilityButton:SetWidth(316)
+    buttonsVisibilityButton:SetWidth(154)
+    minimapVisibilityButton = AddButton("ForeverBagMoverMinimapVisibility",
+        ForeverBagMoverDB.hideMinimap and "Minimap icon: Hidden" or "Minimap icon: Shown", 174, function()
+            SetMinimapHidden(not ForeverBagMoverDB.hideMinimap)
+        end, 14)
+    minimapVisibilityButton:SetWidth(154)
     AddButton("ForeverBagMoverDone", "Done", 12, function() FinishArrange(true) end)
     AddButton("ForeverBagMoverCancel", "Cancel", 120, function() FinishArrange(false) end)
     AddButton("ForeverBagMoverReset", "Reset layout", 228, ResetLayout)
@@ -985,6 +1033,8 @@ SlashCmdList.FOREVERBAGMOVER = function(input)
         ResetLayout()
     elseif command == "buttons hide" or command == "buttons show" then
         SetButtonsHidden(command == "buttons hide")
+    elseif command == "minimap hide" or command == "minimap show" then
+        SetMinimapHidden(command == "minimap hide")
     elseif command == "free" or command == "free on" or command == "free off" then
         if command == "free" then
             SetFreeMove(not FreeMove())
@@ -992,6 +1042,6 @@ SlashCmdList.FOREVERBAGMOVER = function(input)
             SetFreeMove(command == "free on")
         end
     else
-        Message("Commands: /fbm, /fbm done, /fbm cancel, /fbm reset, /fbm free [on|off], /fbm buttons [hide|show]")
+        Message("Commands: /fbm, /fbm done, /fbm cancel, /fbm reset, /fbm free [on|off], /fbm buttons [hide|show], /fbm minimap [hide|show]")
     end
 end

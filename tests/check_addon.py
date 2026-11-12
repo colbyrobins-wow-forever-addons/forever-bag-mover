@@ -580,6 +580,25 @@ def main() -> None:
         assert(iconPoint[1] == 'TOPLEFT' and iconPoint[2] == launcher
             and iconPoint[4] == 7 and iconPoint[5] == -6,
             'Icon is centered inside the tracking-border ring')
+        local geometry = ForeverBagMoverLayout
+        assert(ForeverBagMoverDB.minimapAngle == 225, 'Launcher angle defaults to lower-left')
+        assert(geometry.ValidMinimapAngle('bad') == 225 and geometry.ValidMinimapAngle(360) == 225
+            and geometry.ValidMinimapAngle(0 / 0) == 225 and geometry.ValidMinimapAngle(90) == 90)
+        assert(math.abs(geometry.MinimapAngle(-1, -1) - 225) < 0.01
+            and math.abs(geometry.MinimapAngle(1, 0)) < 0.01
+            and math.abs(geometry.MinimapAngle(0, -1) - 270) < 0.01)
+        function Minimap:GetCenter() return 500, 400 end
+        Minimap.scale = 2
+        cursorX, cursorY = 1000, 1200
+        launcher.scripts.OnDragStart(launcher)
+        launcher.scripts.OnUpdate(launcher)
+        local radius = Minimap:GetWidth() / 2 + 10
+        assert(math.abs(ForeverBagMoverDB.minimapAngle - 90) < 0.01, 'Dragging follows the cursor angle')
+        assert(math.abs(launcher.point[4]) < 0.01 and math.abs(launcher.point[5] - radius) < 0.01,
+            'Dragged launcher stays on the minimap edge')
+        launcher.scripts.OnDragStop(launcher)
+        assert(launcher.scripts.OnUpdate == nil, 'Releasing the drag stops tracking')
+        Minimap.scale = nil
         local frameCount = #frames
         events.scripts.OnEvent(events, 'BAG_UPDATE_DELAYED')
         assert(#frames == frameCount, 'Events must not duplicate the minimap button')
@@ -600,6 +619,24 @@ def main() -> None:
         combat = false
         launcher.scripts.OnClick()
         assert(ForeverBagMoverArrangePanel:IsShown())
+        assert(ForeverBagMoverDB.hideMinimap == false, 'Minimap icon defaults to shown')
+        local minimapToggle = ForeverBagMoverMinimapVisibility
+        assert(minimapToggle.text == 'Minimap icon: Shown')
+        SlashCmdList.FOREVERBAGMOVER('minimap hide')
+        assert(ForeverBagMoverDB.hideMinimap and not launcher:IsShown(), 'Slash command hides the icon')
+        assert(minimapToggle.text == 'Minimap icon: Hidden', 'Slash command updates the menu')
+        combat = true
+        minimapToggle.scripts.OnClick()
+        combat = false
+        assert(not ForeverBagMoverDB.hideMinimap and launcher:IsShown(),
+            'Menu toggle restores the icon, including in combat')
+        assert(minimapToggle.text == 'Minimap icon: Shown')
+        minimapToggle.scripts.OnClick()
+        SlashCmdList.FOREVERBAGMOVER('cancel')
+        assert(ForeverBagMoverDB.hideMinimap and not launcher:IsShown(), 'Visibility saves immediately, including Cancel')
+        SlashCmdList.FOREVERBAGMOVER('minimap show')
+        assert(launcher:IsShown())
+        SlashCmdList.FOREVERBAGMOVER('')
         SlashCmdList.FOREVERBAGMOVER('done')
     """)
     logging.basicConfig(level=logging.INFO)

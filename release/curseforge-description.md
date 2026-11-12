@@ -10,7 +10,7 @@ layout for combined bags. Existing saved positions migrate automatically.
 - **Always movable (optional).** Turn it on to drag bags by their title at any
   time without entering Arrange mode; each move saves when you let go.
 - **Minimap button.** Click the bag icon on the minimap to open the settings
-  panel.
+  panel. Drag it around the minimap edge, or hide it if you prefer `/fbm`.
 - **Hideable bag buttons (optional).** Hide the padlock and filter buttons on
   your bags from the settings panel or with `/fbm buttons hide`.
 - **Per-bag resizing.** Drag a bag's corner to scale it smoothly from 50% to
@@ -45,7 +45,7 @@ layout for combined bags. Existing saved positions migrate automatically.
 
 Commands: `/fbm` (arrange), `/fbm done`, `/fbm cancel`, `/fbm reset`,
 `/fbm free` (toggle always movable; also `/fbm free on` / `/fbm free off`),
-`/fbm buttons hide` / `/fbm buttons show`.
+`/fbm buttons hide` / `/fbm buttons show`, `/fbm minimap hide` / `/fbm minimap show`.
 
 ## Known compatibility notes
 

@@ -168,6 +168,32 @@ an untracked repository describe that earlier state, not the current checkout.
 
 # Development validation
 
+## 2026-11-11: Minimap icon visibility setting
+
+- Added **Minimap icon: Shown/Hidden** beside **Bag buttons** in the `/fbm`
+  panel (that row is now two half-width buttons) and `/fbm minimap hide|show`.
+  Saves per character (`ForeverBagMoverDB.hideMinimap`, default shown) and
+  immediately, including on Cancel; allowed in combat since the launcher is
+  not protected.
+- Local: mocked suite passed with `.scale-test-deps` (new visibility checks);
+  `git diff --check` passed. Luacheck not run locally.
+- Uncommitted on base `a8f9ce1` together with the draggable-button change below.
+  In-game checks pending: half-width buttons fit their labels, hide/show from
+  panel and slash, hidden after reload/relog.
+
+## 2026-11-11: Draggable minimap button
+
+- User reported the minimap icon could not be moved. Dragging it now moves it
+  around the minimap edge; the angle saves per character
+  (`ForeverBagMoverDB.minimapAngle`, default 225 = lower-left, invalid values
+  reset). Angle math lives in `Layout.lua`; tooltip mentions dragging.
+- Local: mocked suite (new drag/angle checks) passed with `.scale-test-deps`;
+  `git diff --check` passed. Luacheck not run locally (CI will).
+- Base `a8f9ce1` plus uncommitted Lua, tests, README, and log edits. Not yet
+  deployed; in-game checks pending: drag around the edge, click still opens
+  settings, position after reload. Planned to ship in 0.8.0 before the
+  `v0.8.0` tag is moved; release notes not yet updated.
+
 ## 2026-11-11: CI and release automation
 
 - Added the shared pipeline from `../WOW-ADDON-PRACTICES.md`: GitHub Actions
@@ -182,6 +208,16 @@ an untracked repository describe that earlier state, not the current checkout.
 - `v0.8.0` was pushed before the workflow existed, so it did not run the
   release job; 0.8.0 is not yet published to CurseForge. `CF_API_TOKEN` is
   not configured by this change.
+
+## 2026-11-11: Release 0.8.0 (amended)
+
+- User requested a release after adding the draggable minimap button and the
+  minimap icon visibility setting. Recorded as release authorization; neither
+  feature was deployed or checked in game.
+- Both features folded into 0.8.0, which had not reached CurseForge or a GitHub
+  Release. Updated CHANGELOG, README, `release/changelog-0.8.0.md`,
+  `release/curseforge-description.md`, and the upload guide. The `v0.8.0` tag
+  is moved to the amended release commit (force-pushed) to publish through CI.
 
 ## 2026-11-11: Release 0.8.0
 

@@ -60,7 +60,7 @@ Help me update the existing CurseForge World of Warcraft addon project "Forever 
 ## Announcement copy
 
 ```text
-Forever Bag Mover 0.8.0 for WoW Forever adds a minimap button that opens the settings panel, plus an option to hide the padlock and filter buttons on your bags (/fbm buttons hide). Available on CurseForge: [paste project link]
+Forever Bag Mover 0.8.0 for WoW Forever adds a movable, hideable minimap button that opens the settings panel, plus an option to hide the padlock and filter buttons on your bags (/fbm buttons hide). Available on CurseForge: [paste project link]
 ```
 
 ## References

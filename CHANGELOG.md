@@ -2,7 +2,10 @@
 
 - New minimap button: click the bag icon at the lower-left edge of the minimap
   to open the `/fbm` settings panel. It stays available when bag buttons are
-  hidden; opening the panel is still blocked during combat.
+  hidden; opening the panel is still blocked during combat. Drag the icon to
+  move it around the minimap edge; its position saves per character.
+- New **Minimap icon: Shown/Hidden** toggle in the `/fbm` panel, also available
+  as `/fbm minimap hide|show`. Saves per character and works in combat.
 - New **Bag buttons: Shown/Hidden** toggle in the `/fbm` panel, also available
   as `/fbm buttons hide|show`, to hide the padlock/settings and filter buttons
   on the bags. Saves per character and persists after reload.

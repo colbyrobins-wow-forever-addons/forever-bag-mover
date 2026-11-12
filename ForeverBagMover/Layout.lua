@@ -65,3 +65,23 @@ function ForeverBagMoverLayout.Snap(bag, others, width, height, gap)
     local y, gy = Nearest(bag.y, ys, bag.h, height)
     return x, y, gx, gy
 end
+
+-- Minimap launcher: angles are degrees counterclockwise from east, in [0, 360).
+ForeverBagMoverLayout.DefaultMinimapAngle = 225
+
+function ForeverBagMoverLayout.MinimapAngle(dx, dy)
+    if dx == 0 and dy == 0 then return ForeverBagMoverLayout.DefaultMinimapAngle end
+    return math.deg(math.atan2(dy, dx)) % 360
+end
+
+function ForeverBagMoverLayout.ValidMinimapAngle(angle)
+    if type(angle) ~= "number" or angle ~= angle or angle < 0 or angle >= 360 then
+        return ForeverBagMoverLayout.DefaultMinimapAngle
+    end
+    return angle
+end
+
+function ForeverBagMoverLayout.MinimapOffset(angle, radius)
+    local radians = math.rad(angle)
+    return math.cos(radians) * radius, math.sin(radians) * radius
+end

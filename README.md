@@ -59,7 +59,11 @@ setting. It saves immediately, including when you close the panel with Cancel.
 
 Click the bag icon at the lower-left edge of the minimap to open the same
 settings panel. This shortcut stays available when the bag header buttons are
-hidden. Like `/fbm`, opening the panel is blocked during combat.
+hidden. Like `/fbm`, opening the panel is blocked during combat. Drag the icon
+to move it anywhere around the minimap edge; its position saves per character.
+To hide the icon, use the **Minimap icon: Shown/Hidden** toggle in the `/fbm`
+panel or `/fbm minimap hide` (`/fbm minimap show` restores it). This saves per
+character, works in combat, and `/fbm` still opens the panel while it is hidden.
 
 ## Arrange tools (0.4.0)
 
@@ -101,7 +105,8 @@ layout. Snap, Group, and Gap preferences last for the current UI session.
 
 ## Minimap button and bag-button toggle (0.8.0)
 
-- Click the bag icon on the minimap to open the settings panel.
+- Click the bag icon on the minimap to open the settings panel. Drag it to
+  move it around the minimap edge, or hide it with `/fbm minimap hide`.
 - Hide or show the bag header buttons from the panel or with
   `/fbm buttons hide|show`.
 
