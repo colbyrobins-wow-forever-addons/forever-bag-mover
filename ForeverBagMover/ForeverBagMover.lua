@@ -575,6 +575,50 @@ UpdateHandleGeometry = function(frame, handle)
     end
 end
 
+local minimapButton
+
+local function CreateMinimapButton()
+    if minimapButton or not Minimap then return end
+    minimapButton = CreateFrame("Button", "ForeverBagMoverMinimapButton", Minimap)
+    -- Standard minimap-button geometry: the tracking border's ring sits in the
+    -- top-left of its texture, so the backdrop and icon use matching offsets.
+    minimapButton:SetSize(31, 31)
+    minimapButton:SetFrameStrata("MEDIUM")
+    minimapButton:SetFrameLevel(8)
+    local offset = ((Minimap:GetWidth() or 140) / 2 + 10) * math.cos(math.rad(45))
+    minimapButton:SetPoint("CENTER", Minimap, "CENTER", -offset, -offset)
+    minimapButton:RegisterForClicks("LeftButtonUp")
+    minimapButton:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+    local backdrop = minimapButton:CreateTexture(nil, "BACKGROUND")
+    backdrop:SetSize(20, 20)
+    backdrop:SetPoint("TOPLEFT", minimapButton, "TOPLEFT", 7, -5)
+    backdrop:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+    local icon = minimapButton:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(17, 17)
+    icon:SetPoint("TOPLEFT", minimapButton, "TOPLEFT", 7, -6)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Bag_08")
+    icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+    minimapButton.icon = icon
+    local border = minimapButton:CreateTexture(nil, "OVERLAY")
+    border:SetSize(53, 53)
+    border:SetPoint("TOPLEFT", minimapButton, "TOPLEFT")
+    border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+    minimapButton:SetScript("OnClick", function()
+        GameTooltip:Hide()
+        BeginArrange()
+    end)
+    minimapButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText("Forever Bag Mover")
+        GameTooltip:AddLine("Click to open settings.", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    minimapButton:SetScript("OnHide", function(self)
+        if GameTooltip:IsOwned(self) then GameTooltip:Hide() end
+    end)
+end
+
 Refresh = function()
     if not ready then return end
     if panel then
@@ -597,7 +641,8 @@ Refresh = function()
             if showSettings then texture:Show() else texture:Hide() end
         end
         handle.toggle.shackle:SetHeight(draftPositions and 3 or 7)
-        if isFirstBag and frame:IsShown() and not InCombatLockdown() then
+        if isFirstBag and frame:IsShown() and not InCombatLockdown()
+            and not ForeverBagMoverDB.hideButtons then
             handle.toggle:SetFrameLevel(frame:GetFrameLevel() + 20)
             handle.toggle:Show()
             local searchBox = frame.SearchBox or BagItemSearchBox
@@ -664,6 +709,7 @@ events:SetScript("OnEvent", function(_, event, name)
             end
         end
         ForeverBagMoverDB.freeMove = ForeverBagMoverDB.freeMove == true
+        ForeverBagMoverDB.hideButtons = ForeverBagMoverDB.hideButtons == true
         ForeverBagMoverDB.x = nil
         ForeverBagMoverDB.y = nil
         ready = true
@@ -672,6 +718,7 @@ events:SetScript("OnEvent", function(_, event, name)
         if event == "PLAYER_LOGIN" then RememberCharacter() end
         InstallHook()
         Refresh()
+        CreateMinimapButton()
     end
 end)
 
@@ -739,6 +786,23 @@ local function ResetLayout()
 end
 
 local freeMoveButton
+local buttonsVisibilityButton
+
+local function SetButtonsHidden(hidden)
+    if not ready then return end
+    if InCombatLockdown() then
+        Message("Change button visibility after leaving combat.")
+        return
+    end
+    ForeverBagMoverDB.hideButtons = hidden
+    if buttonsVisibilityButton then
+        buttonsVisibilityButton:SetText(hidden and "Bag buttons: Hidden" or "Bag buttons: Shown")
+    end
+    Refresh()
+    Message(hidden
+        and "Bag buttons hidden. Use /fbm to arrange bags or /fbm buttons show to restore them."
+        or "Bag buttons shown.")
+end
 
 local function SetFreeMove(enabled)
     if InCombatLockdown() then
@@ -758,7 +822,7 @@ end
 local function CreatePanel()
     if panel then return end
     panel = CreateFrame("Frame", "ForeverBagMoverArrangePanel", UIParent)
-    panel:SetSize(340, 342)
+    panel:SetSize(340, 374)
     panel:SetPoint("TOP", UIParent, "TOP", 0, -60)
     panel:SetFrameStrata("DIALOG")
     local background = panel:CreateTexture(nil, "BACKGROUND")
@@ -770,20 +834,20 @@ local function CreatePanel()
     local function AddButton(name, text, x, action, y)
         local button = CreateFrame("Button", name, panel, "UIPanelButtonTemplate")
         button:SetSize(100, 24)
-        button:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", x, y or 12)
+        button:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", x, y and (y + 32) or 12)
         button:SetText(text)
         button:SetScript("OnClick", action)
         return button
     end
     local nameBox = CreateFrame("EditBox", "ForeverBagMoverPresetName", panel, "InputBoxTemplate")
     nameBox:SetSize(198, 24)
-    nameBox:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 18, 278)
+    nameBox:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 18, 310)
     nameBox:SetAutoFocus(false)
     nameBox:SetMaxLetters(40)
     nameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     nameBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     local caption = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    caption:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 12, 305)
+    caption:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 12, 337)
     caption:SetText("Preset name (saving replaces the same name)")
     local presetChoice, characterChoice
     local presetButton, characterButton
@@ -839,7 +903,7 @@ local function CreatePanel()
         Preview(ForeverBagMoverSharedDB.characters[characterChoice])
     end, 214)
     local libraryHint = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    libraryHint:SetPoint("BOTTOM", panel, "BOTTOM", 0, 185)
+    libraryHint:SetPoint("BOTTOM", panel, "BOTTOM", 0, 217)
     libraryHint:SetText("Click selectors to cycle. Presets are shared across characters.")
     local function Arrange(mode)
         if not draftPositions or InCombatLockdown() then return end
@@ -874,13 +938,18 @@ local function CreatePanel()
         self:SetText("Gap: " .. spacing)
     end, 108)
     local hint = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hint:SetPoint("BOTTOM", panel, "BOTTOM", 0, 78)
+    hint:SetPoint("BOTTOM", panel, "BOTTOM", 0, 110)
     hint:SetText("Drag a bag corner to resize. Hold Alt to bypass snapping.")
     freeMoveButton = AddButton("ForeverBagMoverFreeMove",
         FreeMove() and "Always movable: On" or "Always movable: Off", 12, function()
             SetFreeMove(not FreeMove())
         end, 46)
     freeMoveButton:SetWidth(316)
+    buttonsVisibilityButton = AddButton("ForeverBagMoverButtonsVisibility",
+        ForeverBagMoverDB.hideButtons and "Bag buttons: Hidden" or "Bag buttons: Shown", 12, function()
+            SetButtonsHidden(not ForeverBagMoverDB.hideButtons)
+        end, 14)
+    buttonsVisibilityButton:SetWidth(316)
     AddButton("ForeverBagMoverDone", "Done", 12, function() FinishArrange(true) end)
     AddButton("ForeverBagMoverCancel", "Cancel", 120, function() FinishArrange(false) end)
     AddButton("ForeverBagMoverReset", "Reset layout", 228, ResetLayout)
@@ -899,7 +968,7 @@ BeginArrange = function()
     if OpenAllBags then OpenAllBags() elseif OpenBackpack then OpenBackpack() end
     Refresh()
     Message(FreeMove() and "Arrange mode. Drag titles or corners, then choose Done to save."
-        or "All bags unlocked. Drag their highlighted titles, then click the padlock on the backpack to save.")
+        or "All bags unlocked. Drag their highlighted titles, then choose Done to save.")
 end
 
 SLASH_FOREVERBAGMOVER1 = "/fbm"
@@ -914,6 +983,8 @@ SlashCmdList.FOREVERBAGMOVER = function(input)
     elseif command == "reset" then
         BeginArrange()
         ResetLayout()
+    elseif command == "buttons hide" or command == "buttons show" then
+        SetButtonsHidden(command == "buttons hide")
     elseif command == "free" or command == "free on" or command == "free off" then
         if command == "free" then
             SetFreeMove(not FreeMove())
@@ -921,6 +992,6 @@ SlashCmdList.FOREVERBAGMOVER = function(input)
             SetFreeMove(command == "free on")
         end
     else
-        Message("Commands: /fbm, /fbm done, /fbm cancel, /fbm reset, /fbm free [on|off]")
+        Message("Commands: /fbm, /fbm done, /fbm cancel, /fbm reset, /fbm free [on|off], /fbm buttons [hide|show]")
     end
 end

@@ -59,6 +59,7 @@ def main() -> None:
         for _, name in ipairs({'SetSize', 'SetFrameStrata', 'SetMovable',
             'SetClampedToScreen', 'RegisterForDrag', 'SetAllPoints',
             'SetColorTexture', 'ClearAllPoints', 'StartMoving',
+            'RegisterForClicks', 'SetHighlightTexture', 'SetTexCoord', 'AddLine',
             'StopMovingOrSizing', 'RegisterEvent', 'SetAutoFocus', 'SetMaxLetters', 'ClearFocus', 'SetTexture'}) do
             methods[name] = function() end
         end
@@ -515,6 +516,90 @@ def main() -> None:
         ForeverBagMoverDB.freeMove = true
         events.scripts.OnEvent(events, 'ADDON_LOADED', 'ForeverBagMover')
         assert(ForeverBagMoverDB.freeMove == true and handle:IsShown())
+
+        BagItemSearchBox = CreateFrame()
+        events.scripts.OnEvent(events, 'BAG_UPDATE_DELAYED')
+        assert(ForeverBagMoverDB.hideButtons == false)
+        assert(handle.toggle:IsShown() and handle.filter:IsShown())
+        handle.filter.scripts.OnClick(handle.filter)
+        SlashCmdList.FOREVERBAGMOVER('buttons hide')
+        assert(ForeverBagMoverDB.hideButtons == true)
+        assert(not handle.toggle:IsShown() and not handle.filter:IsShown())
+        assert(not handle.filter.menu:IsShown(), 'Hiding closes the filter menu')
+        ContainerFrame1:Hide()
+        ContainerFrame1:Show()
+        events.scripts.OnEvent(events, 'ADDON_LOADED', 'ForeverBagMover')
+        assert(ForeverBagMoverDB.hideButtons == true, 'Saved preference survives initialization')
+        assert(not handle.toggle:IsShown() and not handle.filter:IsShown())
+        SlashCmdList.FOREVERBAGMOVER('')
+        assert(ForeverBagMoverArrangePanel:IsShown(), 'Slash command remains accessible')
+        SlashCmdList.FOREVERBAGMOVER('cancel')
+        combat = true
+        SlashCmdList.FOREVERBAGMOVER('buttons show')
+        assert(ForeverBagMoverDB.hideButtons == true, 'Combat blocks visibility changes')
+        combat = false
+        events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
+        assert(not handle.toggle:IsShown() and not handle.filter:IsShown())
+        SlashCmdList.FOREVERBAGMOVER('buttons show')
+        assert(handle.toggle:IsShown() and handle.filter:IsShown())
+        ForeverBagMoverDB.hideButtons = 'yes'
+        events.scripts.OnEvent(events, 'ADDON_LOADED', 'ForeverBagMover')
+        assert(ForeverBagMoverDB.hideButtons == false, 'Invalid preference defaults to visible')
+        SlashCmdList.FOREVERBAGMOVER('buttons show')
+        SlashCmdList.FOREVERBAGMOVER('')
+        local visibility = ForeverBagMoverButtonsVisibility
+        assert(visibility.text == 'Bag buttons: Shown')
+        visibility.scripts.OnClick()
+        assert(ForeverBagMoverDB.hideButtons and visibility.text == 'Bag buttons: Hidden')
+        assert(not handle.toggle:IsShown() and not handle.filter:IsShown())
+        SlashCmdList.FOREVERBAGMOVER('cancel')
+        assert(ForeverBagMoverDB.hideButtons, 'Visibility saves immediately, including Cancel')
+        SlashCmdList.FOREVERBAGMOVER('')
+        assert(visibility.text == 'Bag buttons: Hidden')
+        combat = true
+        visibility.scripts.OnClick()
+        assert(ForeverBagMoverDB.hideButtons, 'Menu setting is blocked in combat')
+        combat = false
+        SlashCmdList.FOREVERBAGMOVER('buttons show')
+        assert(visibility.text == 'Bag buttons: Shown', 'Slash command updates the menu')
+        visibility.scripts.OnClick()
+        visibility.scripts.OnClick()
+        assert(not ForeverBagMoverDB.hideButtons and handle.toggle:IsShown())
+        SlashCmdList.FOREVERBAGMOVER('done')
+        assert(ForeverBagMoverMinimapButton == nil, 'Missing minimap must be harmless')
+        Minimap = CreateFrame()
+        events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+        local launcher = ForeverBagMoverMinimapButton
+        assert(launcher and launcher.point[2] == Minimap)
+        local edge = (Minimap:GetWidth() / 2 + 10) * math.cos(math.rad(45))
+        assert(math.abs(launcher.point[4] + edge) < 0.01
+            and math.abs(launcher.point[5] + edge) < 0.01,
+            'Launcher sits just outside the lower-left minimap edge')
+        local iconPoint = launcher.icon.point
+        assert(iconPoint[1] == 'TOPLEFT' and iconPoint[2] == launcher
+            and iconPoint[4] == 7 and iconPoint[5] == -6,
+            'Icon is centered inside the tracking-border ring')
+        local frameCount = #frames
+        events.scripts.OnEvent(events, 'BAG_UPDATE_DELAYED')
+        assert(#frames == frameCount, 'Events must not duplicate the minimap button')
+        SlashCmdList.FOREVERBAGMOVER('buttons hide')
+        assert(launcher:IsShown(), 'Bag button preference must leave the launcher accessible')
+        launcher.scripts.OnEnter(launcher)
+        assert(GameTooltip.text == 'Forever Bag Mover' and GameTooltip:IsShown())
+        launcher.scripts.OnLeave()
+        assert(not GameTooltip:IsShown())
+        launcher.scripts.OnClick()
+        assert(ForeverBagMoverArrangePanel:IsShown(), 'Minimap click opens settings')
+        launcher.scripts.OnClick()
+        assert(ForeverBagMoverArrangePanel:IsShown(), 'Repeated click preserves the draft')
+        SlashCmdList.FOREVERBAGMOVER('cancel')
+        combat = true
+        launcher.scripts.OnClick()
+        assert(not ForeverBagMoverArrangePanel:IsShown(), 'Combat blocks minimap settings access')
+        combat = false
+        launcher.scripts.OnClick()
+        assert(ForeverBagMoverArrangePanel:IsShown())
+        SlashCmdList.FOREVERBAGMOVER('done')
     """)
     logging.basicConfig(level=logging.INFO)
     logging.info("Arrange-mode checks passed (mocked WoW APIs).")

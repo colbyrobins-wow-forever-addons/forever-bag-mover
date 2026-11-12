@@ -15,7 +15,8 @@ versioning and publication are separate requested steps, as in PallySealCooldown
    verifying copied files against the source. The previously verified target is
    `C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns\ForeverBagMover`.
    Confirm the active client path before future deployment. A source junction is
-   optional and requires a separate request; this setup does not establish one.
+  now established at that target after an explicit user request; see the junction
+  test session below. Source edits load on reload; restart for TOC changes.
 5. Test in Forever 1.60.1 (record the actual build). Reload after Lua edits;
    restart after adding files or changing the TOC. Check the README's in-game
    scenarios plus scenarios specific to the change. Fix problems and repeat.
@@ -42,7 +43,66 @@ After the user accepts in-game results and requests release preparation:
 
 ## Current work — 2026-11-10
 
-- Unreleased work: workflow setup only; runtime and TOC version 0.7.0 unchanged.
+### Junction test session
+
+- User confirmed WoW closed; elevated process check confirmed before changes.
+  Compared the installed folder with source: main Lua and TOC differed, and
+  the other three files matched. Moved the real installation to
+  `<workspace>/../addon-deployment-backups/ForeverBagMover-before-junction-7cd8aaf-6662ad897fe740b6992a49651b6e2029`;
+  verified all five backup files with SHA-256.
+- Created the client addon junction targeting `<workspace>/ForeverBagMover`.
+  Verified link type, destination, and all five files read through the junction.
+  Saved variables and other addons were untouched.
+- Test build: base `7cd8aaf` with uncommitted main Lua, TOC, tests, README,
+  and DEVELOPMENT changes; unrelated untracked `.vscode/` preserved.
+- Launch WoW and check the minimap icon, tooltip, settings panel, button
+  visibility toggle and slash commands, reload persistence, and combat behavior.
+  In-game acceptance pending. Version remains 0.7.0; no commit or publication.
+
+### Minimap settings shortcut and CurseForge metadata
+
+- Added a bag icon at the lower-left of the minimap to open the `/fbm` panel.
+  It remains visible when bag header buttons are hidden; existing combat checks
+  still block opening the panel. Repeated events do not create duplicate icons.
+- Recorded user-provided CurseForge project ID `1702198` in the TOC. Version
+  remains 0.7.0; no release or publication performed.
+- Base `7cd8aaf` plus uncommitted Lua, TOC, tests, README, and development log
+  changes. Mocked regression suite passed with `.scale-test-deps`; whitespace
+  and TOC file checks passed. Luacheck and in-game checks remain pending.
+- Pending client checks: icon appearance/placement, tooltip, opening settings
+  with bag buttons hidden, and combat behavior. Restart after the TOC update.
+- Now available through the verified source junction described above.
+  User acceptance remains pending; changes remain uncommitted.
+
+### Settings panel follow-up
+
+- Added a Bag buttons: Shown/Hidden toggle to `/fbm`, sharing the slash command
+  handler and combat guard. This preference saves immediately, including Cancel.
+  Expanded the panel by one row and moved existing controls to preserve spacing.
+- Base `7cd8aaf` plus uncommitted runtime, tests, README, and development log edits.
+  Full mocked regression suite passed using the `.scale-test-deps` workaround;
+  `git diff --check` passed. Luacheck was not run.
+- Menu follow-up deployed on 2026-11-10: all five installed addon files match
+  source by SHA-256. Previous installation backed up and hash-verified at
+  `<workspace>/dist/deployment-backups/ButtonMenu-7cd8aaf-a40c7647848e46d5adca56380adbb6a5/ForeverBagMover`.
+  Target remains a regular directory. Reload the client to load the menu update.
+  In-game checks pending: panel spacing, toggle in both directions, slash/menu
+  synchronization, reload persistence, and combat.
+- User acceptance pending; TOC remains 0.7.0; no commit or release prepared.
+
+### Minimap icon alignment fix — 2026-11-11
+
+- User reported the bag icon was not set properly in the minimap button. The
+  icon was centered on the button while the tracking-border ring sits in the
+  top-left of its texture, so the bag sat off-center with corners outside the
+  ring. Switched to standard minimap-button geometry (31px button, dark round
+  backdrop, 17px icon at TOPLEFT 7,-6, 53px border) and placed the button just
+  outside the lower-left minimap edge, derived from the minimap width.
+- Added regression checks for launcher placement and icon anchoring. Mocked
+  suite passed with `.scale-test-deps`; `git diff --check` passed. Not yet
+  deployed to the client; in-game appearance check pending.
+
+- Unreleased work: saved button visibility commands; TOC version 0.7.0 unchanged.
 - Local verification: documentation references and TOC-listed files checked;
   see the setup commit for the exact changes. No new in-game testing performed.
 - Pending client checks: Always movable hover/drag/snap/group behavior, title-bar
@@ -56,6 +116,30 @@ After the user accepts in-game results and requests release preparation:
   establish what was published.
 
 ## Reusable test record
+
+### 2026-11-10: Button visibility commands
+
+- Base Git commit: `7cd8aaf`; uncommitted changes in the main addon Lua file,
+  `tests/check_addon.py`, `README.md`, and `DEVELOPMENT.md`. Existing untracked
+  `.vscode/` remains unrelated and untouched.
+- Added per-character `/fbm buttons hide` and `/fbm buttons show`. Defaults to
+  visible; changes are blocked in combat. Arrange remains accessible via `/fbm`.
+- Local: standard test command hit the known `.test-deps/lupa` PermissionError.
+  Full mocked suite passed with the existing workaround:
+  `python -c "import sys; sys.path.insert(0, '.scale-test-deps'); import lupa.lua51; import runpy; runpy.run_path('tests/check_addon.py', run_name='__main__')"`.
+  `git diff --check` passed. Coverage includes hide/show, closing the filter menu,
+  reopening bags, saved-value initialization, slash access, and combat rejection.
+- In-game testing and user acceptance pending: test separate and combined bags,
+  hide/show with a filter menu open, `/fbm` then Done/Cancel while hidden,
+  close/reopen, reload persistence, and combat transitions.
+- Deployed for testing on 2026-11-10 at the user's request: copied all five
+  addon files into the existing client installation; SHA-256 hashes match source.
+  All five previous installation files were backed up and hash-verified under
+  `<workspace>/dist/deployment-backups/ButtonVisibility-7cd8aaf-bc32cc5bdf504440b3c0bd20ef83d0e2/ForeverBagMover`.
+  The target remains a regular directory; no junction was created. No running
+  WoW process was observed. Base `7cd8aaf` plus the uncommitted changes listed
+  above identifies this test build. Reload or launch the client to test.
+- In-game acceptance pending. No commit, release version change, or publication.
 
 - Date and change:
 - Base Git commit and uncommitted files:
@@ -72,6 +156,14 @@ The entries below retain their original chronology and claims. Statements about
 an untracked repository describe that earlier state, not the current checkout.
 
 # Development validation
+
+## 2026-11-11: Release 0.8.0
+
+- User requested commit, version tag, and push after the minimap icon
+  alignment fix. Recorded as release authorization; the minimap alignment fix
+  and the button-visibility in-game checks were not separately reported.
+- Minor version for the minimap button and bag-button visibility toggle.
+  Updated TOC, CHANGELOG, README, CurseForgeDescription. Tagged `v0.8.0`.
 
 ## 2026-11-07: Release preparation 0.7.0
 

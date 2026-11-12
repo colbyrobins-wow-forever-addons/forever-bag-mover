@@ -1,3 +1,12 @@
+# 0.8.0 - 2026-11-11
+
+- New minimap button: click the bag icon at the lower-left edge of the minimap
+  to open the `/fbm` settings panel. It stays available when bag buttons are
+  hidden; opening the panel is still blocked during combat.
+- New **Bag buttons: Shown/Hidden** toggle in the `/fbm` panel, also available
+  as `/fbm buttons hide|show`, to hide the padlock/settings and filter buttons
+  on the bags. Saves per character and persists after reload.
+
 # 0.7.0 - 2026-11-07
 
 - New **Always movable** setting (Arrange panel or `/fbm free on|off`): drag any

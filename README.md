@@ -48,6 +48,19 @@ Commands: `/fbm` (arrange), `/fbm done`, `/fbm cancel`, `/fbm reset`,
 `/fbm free` (toggle always movable; also `/fbm free on` / `/fbm free off`).
 Legacy `/fbm unlock` enters Arrange mode and `/fbm lock` saves and exits.
 
+Use `/fbm buttons hide` to hide both the settings/padlock and filter buttons,
+or `/fbm buttons show` to restore them. This preference saves per character
+and persists after reload. `/fbm` still opens Arrange mode while buttons are
+hidden; use Done/Cancel in the panel or the slash commands to finish.
+Change button visibility outside combat. Hiding buttons leaves the current
+filter and search unchanged; select All items before hiding if needed.
+The `/fbm` panel also has a **Bag buttons: Shown/Hidden** toggle for the same
+setting. It saves immediately, including when you close the panel with Cancel.
+
+Click the bag icon at the lower-left edge of the minimap to open the same
+settings panel. This shortcut stays available when the bag header buttons are
+hidden. Like `/fbm`, opening the panel is blocked during combat.
+
 ## Arrange tools (0.4.0)
 
 - **Row / Column / Grid:** Preview a layout for currently open bags, ordered by
@@ -85,6 +98,12 @@ layout. Snap, Group, and Gap preferences last for the current UI session.
   bag sizes may still need adjustment; preview the result before saving.
 - Preset names are case-sensitive and limited to 40 characters. Presets and
   character copies remain independent after loading.
+
+## Minimap button and bag-button toggle (0.8.0)
+
+- Click the bag icon on the minimap to open the settings panel.
+- Hide or show the bag header buttons from the panel or with
+  `/fbm buttons hide|show`.
 
 ## Always movable and item-use fix (0.7.0)
 
