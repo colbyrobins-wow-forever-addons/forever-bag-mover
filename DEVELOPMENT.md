@@ -209,6 +209,16 @@ an untracked repository describe that earlier state, not the current checkout.
   release job; 0.8.0 is not yet published to CurseForge. `CF_API_TOKEN` is
   not configured by this change.
 
+## 2026-11-11: Published 0.8.0
+
+- `v0.8.0` (release commit `2f16e03`) force-pushed at the user's request.
+  Workflow run 43132863292 passed checks and release: uploaded
+  `ForeverBagMover-v0.8.0-forever.zip` to CurseForge project 1702198 (1.60.1,
+  Release) and created the GitHub Release. Downloaded ZIP holds only the
+  addon folder; its files match the tag apart from CRLF line endings.
+- CurseForge moderation status and in-game checks of the 0.8.0 minimap
+  features remain pending.
+
 ## 2026-11-11: Release 0.8.0 (amended)
 
 - User requested a release after adding the draggable minimap button and the
