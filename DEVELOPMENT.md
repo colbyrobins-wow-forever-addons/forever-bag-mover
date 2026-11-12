@@ -23,23 +23,34 @@ versioning and publication are separate requested steps, as in PallySealCooldown
 6. After user acceptance, commit the source, tests, documentation, and required
    assets together. Keep the release version unchanged until release preparation.
 
-The repository currently has no Docker check wrapper or CI release pipeline.
-Use its existing Python/Lua harness; PallySealCooldowns commands do not apply here.
+`scripts/check.ps1` (needs Docker Desktop) runs `scripts/check.sh` in the same
+Ubuntu image and packages as CI: luacheck, `tests/check_addon.py`, and the TOC
+file check. Without Docker, the Python harness above still runs, but luacheck
+does not; say so when recording results.
 Mocked checks cannot establish visual layout, combat safety, or client compatibility.
+
+## CI and release pipeline
+
+`.github/workflows/ci-release.yml` runs `scripts/check.sh` on pushes and pull
+requests to `free-move`. A `v*` tag also checks that the tag matches the TOC
+version and that `release/changelog-<version>.md` exists, then runs the
+BigWigsMods packager (`.pkgmeta`) to create the GitHub Release and upload to
+CurseForge. Upload needs the `CF_API_TOKEN` repository secret.
 
 ## Release gate
 
 After the user accepts in-game results and requests release preparation:
 
 1. Choose the version and update `ForeverBagMover/ForeverBagMover.toc`,
-   `CHANGELOG.md`, `README.md`, and `CurseForgeDescription.md` consistently.
+   `CHANGELOG.md`, `README.md`, `release/changelog-<version>.md` (new),
+   `release/curseforge-description.md`, and `release/UPLOAD-GUIDE.md` consistently.
 2. Run local checks and compare runtime files with the accepted test build.
    Changes beyond release metadata require relevant retesting.
-3. Commit release preparation. Create archives under ignored `dist/`, containing
-   only the addon folder and required runtime files. Tags and publication are
-   separate explicit actions; there is no configured publishing automation.
-4. Push or publish only when requested, and record publication separately from
-   preparation. Local Git history is not a remote backup (no remote is configured).
+3. Commit as `Prepare ForeverBagMover <version> release` and create the
+   annotated tag `v<version>`. Do not push it during preparation.
+4. Pushing a `v*` tag publishes. Push only the requested tag
+   (`git push origin v<version>`) when asked, check the workflow result, and
+   record publication separately from preparation.
 
 ## Current work — 2026-11-10
 
@@ -156,6 +167,21 @@ The entries below retain their original chronology and claims. Statements about
 an untracked repository describe that earlier state, not the current checkout.
 
 # Development validation
+
+## 2026-11-11: CI and release automation
+
+- Added the shared pipeline from `../WOW-ADDON-PRACTICES.md`: GitHub Actions
+  workflow, `scripts/check.sh`/`check.ps1`, `.luacheckrc`, `.pkgmeta`, and the
+  `release/` upload kit (`CurseForgeDescription.md` moved to
+  `release/curseforge-description.md`; added `changelog-0.8.0.md`).
+- The test harness now prefers an installed lupa over `.test-deps` so CI and
+  Docker can use a Linux build.
+- Local: mocked suite passed with `.scale-test-deps`. Luacheck was not run
+  locally (Docker unavailable); the `.luacheckrc` globals list was built from a
+  code scan and is verified only by the first CI run.
+- `v0.8.0` was pushed before the workflow existed, so it did not run the
+  release job; 0.8.0 is not yet published to CurseForge. `CF_API_TOKEN` is
+  not configured by this change.
 
 ## 2026-11-11: Release 0.8.0
 

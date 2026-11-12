@@ -12,6 +12,10 @@
   back up any real installation folder first. Never recursively delete a junction.
 - Assign versions and prepare release archives or tags only after acceptance
   and a request to prepare a release. Push or publish only when requested.
+- Pushing a `v*` tag publishes: `.github/workflows/ci-release.yml` creates the
+  GitHub Release and uploads to CurseForge. Push only the requested tag, and
+  only when the user asks to publish that version. Workflow maintenance may be
+  committed after local checks.
 - Track source, tests, documentation, and required assets. Exclude dependencies,
   deployment backups, and build archives. Preserve unrelated local edits.
 - Keep personal paths, credentials, and account/character details out of new

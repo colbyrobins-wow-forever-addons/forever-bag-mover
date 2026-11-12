@@ -5,7 +5,8 @@ import logging
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / ".test-deps"))
+# Appended so an installed lupa (CI, Docker) wins over a local Windows build.
+sys.path.append(str(ROOT / ".test-deps"))
 from lupa.lua51 import LuaRuntime
 
 

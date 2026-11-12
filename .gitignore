@@ -1,5 +1,8 @@
 .test-deps/
-__pycache__/
-dist/
-
 .scale-test-deps/
+__pycache__/
+*.pyc
+dist/
+release/changelog-current.md
+.vscode/*
+!.vscode/extensions.json

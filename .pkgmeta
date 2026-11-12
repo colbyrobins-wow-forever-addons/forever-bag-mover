@@ -1,0 +1,31 @@
+# BigWigsMods/packager settings. Use spaces, not tabs.
+package-as: ForeverBagMover
+
+# The addon lives in a subfolder, so lift it to the top of the ZIP.
+move-folders:
+  ForeverBagMover/ForeverBagMover: ForeverBagMover
+
+# Written by the release workflow from release/changelog-<version>.md.
+manual-changelog:
+  filename: release/changelog-current.md
+  markup-type: markdown
+
+# Everything outside the addon folder stays out of the ZIP.
+ignore:
+  - AGENTS.md
+  - CHANGELOG.md
+  - DEVELOPMENT.md
+  - README.md
+  - docs
+  - release
+  - screenshots
+  - scripts
+  - tests
+  - dist
+  - .test-deps
+  - .scale-test-deps
+  - .github
+  - .vscode
+  - .gitattributes
+  - .gitignore
+  - .luacheckrc
