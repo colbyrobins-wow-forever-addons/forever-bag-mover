@@ -168,6 +168,15 @@ an untracked repository describe that earlier state, not the current checkout.
 
 # Development validation
 
+## 2026-11-26: Published 0.9.0
+
+- At the user's request, pushed `free-move` (CI passed, luacheck 0 warnings / 0
+  errors), then the `v0.9.0` tag. The tag workflow passed: the packager uploaded
+  `ForeverBagMover-v0.9.0-forever.zip` (1.60.1 release) to CurseForge project
+  1702198 and created the GitHub Release with the ZIP and `release.json`.
+- Downloaded the GitHub Release ZIP: it holds the five addon files, each
+  matching the `v0.9.0` tag. CurseForge moderation status not checked here.
+
 ## 2026-11-26: Release preparation 0.9.0
 
 - User accepted the in-game results ("everything is working") and asked to
