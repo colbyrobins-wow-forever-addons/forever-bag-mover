@@ -113,6 +113,14 @@ layout. Snap, Group, and Gap preferences last for the current UI session.
 - Preset names are case-sensitive and limited to 40 characters. Presets and
   character copies remain independent after loading.
 
+## Reagent bag glue and key ring (0.9.0)
+
+- Bags touching the combined backpack, such as the reagent bag, are glued to
+  it: they move and resize with it and stay attached after reloads and presets.
+- The key ring can be moved and saved like any other bag.
+- New **Key ring with bags** setting (`/fbm keyring on|off`) opens and closes
+  the key ring with your bags.
+
 ## Minimap button and bag-button toggle (0.8.0)
 
 - Click the bag icon on the minimap to open the settings panel. Drag it to

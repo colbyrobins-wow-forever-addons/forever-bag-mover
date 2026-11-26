@@ -2,7 +2,7 @@
 ## Title: Forever Bag Mover
 ## Notes: Arrange individual or combined bags with preview, save, and cancel.
 ## Author: Colby
-## Version: 0.8.0
+## Version: 0.9.0
 ## X-Curse-Project-ID: 1702198
 ## SavedVariables: ForeverBagMoverSharedDB
 ## SavedVariablesPerCharacter: ForeverBagMoverDB

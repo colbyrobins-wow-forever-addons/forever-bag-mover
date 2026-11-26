@@ -1,4 +1,4 @@
-# Unreleased
+# 0.9.0 - 2026-11-26
 
 - Bags touching the combined backpack, such as the reagent bag, are now glued
   to it: they move with it, follow it when it is resized, and stay attached

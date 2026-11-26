@@ -9,6 +9,11 @@ layout for combined bags. Existing saved positions migrate automatically.
 - **Free placement.** Drag any bag anywhere on screen - separately or as a group.
 - **Always movable (optional).** Turn it on to drag bags by their title at any
   time without entering Arrange mode; each move saves when you let go.
+- **Reagent bag stays attached.** Bags touching the combined backpack, such as
+  the reagent bag, are glued to it: they move and resize with it and stay in
+  place after reloads, relogs, and presets. Drag a bag away to unglue it.
+- **Movable key ring.** Move and save the key ring like any other bag, and
+  optionally have it open and close with your bags (**Key ring with bags**).
 - **Minimap button.** Click the bag icon on the minimap to open the settings
   panel. Drag it around the minimap edge, or hide it if you prefer `/fbm`.
 - **Hideable bag buttons (optional).** Hide the padlock and filter buttons on
@@ -45,7 +50,8 @@ layout for combined bags. Existing saved positions migrate automatically.
 
 Commands: `/fbm` (arrange), `/fbm done`, `/fbm cancel`, `/fbm reset`,
 `/fbm free` (toggle always movable; also `/fbm free on` / `/fbm free off`),
-`/fbm buttons hide` / `/fbm buttons show`, `/fbm minimap hide` / `/fbm minimap show`.
+`/fbm keyring on` / `/fbm keyring off`, `/fbm buttons hide` / `/fbm buttons show`,
+`/fbm minimap hide` / `/fbm minimap show`.
 
 ## Known compatibility notes
 

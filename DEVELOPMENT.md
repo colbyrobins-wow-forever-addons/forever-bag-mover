@@ -168,6 +168,17 @@ an untracked repository describe that earlier state, not the current checkout.
 
 # Development validation
 
+## 2026-11-26: Release preparation 0.9.0
+
+- User accepted the in-game results ("everything is working") and asked to
+  prepare and push the release. Minor version for new features: 0.9.0.
+- Updated the TOC version, CHANGELOG, README, `release/changelog-0.9.0.md`,
+  `release/curseforge-description.md`, and `release/UPLOAD-GUIDE.md`. Runtime
+  Lua files are unchanged from the accepted build `de63f1a`; only the TOC
+  version changed.
+- Local: mocked suite and `git diff --check` passed. Luacheck runs in CI on the
+  branch push, which must pass before the `v0.9.0` tag is pushed.
+
 ## 2026-11-26: Reagent bag glue and movable key ring
 
 - Player feedback: the reagent bag did not stay attached to the combined

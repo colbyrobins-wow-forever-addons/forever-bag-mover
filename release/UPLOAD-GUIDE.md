@@ -1,6 +1,6 @@
 # CurseForge upload kit
 
-Current prepared release: **0.8.0**. Follow `../DEVELOPMENT.md` for development,
+Current prepared release: **0.9.0**. Follow `../DEVELOPMENT.md` for development,
 in-game acceptance, and release preparation. Public upload is a separate step.
 
 ## Automated upload
