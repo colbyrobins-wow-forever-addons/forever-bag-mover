@@ -168,6 +168,50 @@ an untracked repository describe that earlier state, not the current checkout.
 
 # Development validation
 
+## 2026-11-26: Reagent bag glue and movable key ring
+
+- Player feedback: the reagent bag did not stay attached to the combined
+  backpack after reloads or relogs (even with a preset), and did not move when
+  the combined bag was dragged. A second request asked for a movable key bag.
+- Bags touching the combined bag (within the gap setting, minimum 8, plus 4 px)
+  are now glued: their saved position keeps an offset from the nearest
+  combined-bag edges (`glue = {h, v, dx, dy}`). They follow drags, resizes,
+  and changes in the combined bag's size, and are re-placed whenever it is
+  positioned. The absolute x/y stays as a fallback while the combined bag is
+  closed. Presets and character copies carry glue; invalid glue is dropped on
+  load. Combined-bag drags no longer snap to the bags glued to them.
+- The key ring (`KEYRING_CONTAINER`, -2) is now a movable bag, saved as
+  `keyring`. Assumes the Forever client opens it in a `ContainerFrameN`;
+  confirm in game.
+- Added opt-in **Key ring with bags** (`ForeverBagMoverDB.keyringWithBags`,
+  panel toggle beside Always movable, `/fbm keyring [on|off]`). When the
+  backpack or combined bag shows or hides, it opens (`ToggleKeyRing`, else
+  `OpenBag`) or closes (`CloseBag`) the key ring on the next frame via
+  `C_Timer.After(0)`. Skipped in combat; `PLAYER_REGEN_ENABLED` catches up.
+  Taint risk: the key ring's container frame is now opened from addon code.
+  In game, right-click consumables after the key ring has opened and closed
+  several times, in both separate and combined bag modes.
+- Exact cause of the reported reload drift was not reproduced locally. The
+  likely cause is absolute positions breaking when the combined bag's size or
+  default placement differs; glue removes that dependency.
+- Local: mocked suite passed with `.scale-test-deps`, including the new glue and
+  key ring checks (checked by temporarily turning off glue and confirming the
+  new test fails). `git diff --check` passed. Luacheck not run: Docker Desktop
+  was not running.
+- Test build: base `fc0e8e9` plus uncommitted Lua, `.luacheckrc`, tests,
+  README, CHANGELOG, and DEVELOPMENT changes. The client junction loads it on
+  `/reload`.
+- In-game checklist: combined bags with the reagent bag open, then
+  drag the backpack (free move and arrange mode), resize the backpack, reload and
+  relog, save and load a preset, drag the reagent bag away and back, open and
+  move the key ring, and switch to separate bags. For key ring with bags: on/off
+  via panel and slash, B / Shift+B / bag-bar opening, Escape closing, closing
+  the key ring by hand, combat open/close, reload persistence, consumable use.
+- 2026-11-26: the user tested this build in game and reported "everything is
+  working", accepting it. Individual checklist items were not reported
+  separately. Committed after acceptance. Version remains 0.8.0; no release
+  prepared or published.
+
 ## 2026-11-11: Minimap icon visibility setting
 
 - Added **Minimap icon: Shown/Hidden** beside **Bag buttons** in the `/fbm`

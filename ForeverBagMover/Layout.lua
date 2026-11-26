@@ -66,6 +66,53 @@ function ForeverBagMoverLayout.Snap(bag, others, width, height, gap)
     return x, y, gx, gy
 end
 
+-- Glue: a bag touching the combined bag keeps its offset from the nearest
+-- combined-bag edges, so it follows that bag through moves, resizes, and
+-- reloads. Bags are {x = right, y = top, w, h} in UIParent coordinates.
+local function Finite(value)
+    return type(value) == "number" and value == value and math.abs(value) < math.huge
+end
+
+-- True when the rectangles share an edge (gap up to `tolerance`) or overlap;
+-- corner-only contact does not count.
+function ForeverBagMoverLayout.Touching(a, b, tolerance)
+    local gapX = math.max(a.x - a.w - b.x, b.x - b.w - a.x)
+    local gapY = math.max(a.y - a.h - b.y, b.y - b.h - a.y)
+    return gapX <= tolerance and gapY <= tolerance and (gapX < 0 or gapY < 0)
+end
+
+function ForeverBagMoverLayout.ValidGlue(glue)
+    return type(glue) == "table" and (glue.h == "left" or glue.h == "right")
+        and (glue.v == "top" or glue.v == "bottom") and Finite(glue.dx) and Finite(glue.dy)
+end
+
+local function Reference(glue, anchor)
+    return glue.h == "left" and anchor.x - anchor.w or anchor.x,
+        glue.v == "bottom" and anchor.y - anchor.h or anchor.y
+end
+
+function ForeverBagMoverLayout.Glue(bag, anchor, tolerance)
+    if not ForeverBagMoverLayout.Touching(bag, anchor, tolerance) then return nil end
+    local left, anchorLeft = bag.x - bag.w, anchor.x - anchor.w
+    local bottom, anchorBottom = bag.y - bag.h, anchor.y - anchor.h
+    local h, v
+    if bag.x <= anchorLeft + tolerance then h = "left"
+    elseif left >= anchor.x - tolerance then h = "right"
+    else h = math.abs(left - anchorLeft) < math.abs(bag.x - anchor.x) and "left" or "right" end
+    if bag.y <= anchorBottom + tolerance then v = "bottom"
+    elseif bottom >= anchor.y - tolerance then v = "top"
+    else v = math.abs(bottom - anchorBottom) < math.abs(bag.y - anchor.y) and "bottom" or "top" end
+    local glue = {h = h, v = v}
+    local refX, refY = Reference(glue, anchor)
+    glue.dx, glue.dy = bag.x - refX, bag.y - refY
+    return glue
+end
+
+function ForeverBagMoverLayout.GluedPosition(glue, anchor)
+    local refX, refY = Reference(glue, anchor)
+    return refX + glue.dx, refY + glue.dy
+end
+
 -- Minimap launcher: angles are degrees counterclockwise from east, in [0, 360).
 ForeverBagMoverLayout.DefaultMinimapAngle = 225
 

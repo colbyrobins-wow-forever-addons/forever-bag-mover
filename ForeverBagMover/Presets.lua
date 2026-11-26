@@ -6,14 +6,22 @@ local function Finite(value)
 end
 
 local function ValidKey(key)
-    return type(key) == "string" and (key == "combined" or key:match("^bag%d+$"))
+    return type(key) == "string" and (key == "combined" or key == "keyring" or key:match("^bag%d+$"))
+end
+
+-- Glue offsets are UI pixels, like bag sizes, so they are not normalized.
+local function CopyGlue(glue)
+    if ForeverBagMoverLayout.ValidGlue(glue) then
+        return {h = glue.h, v = glue.v, dx = glue.dx, dy = glue.dy}
+    end
 end
 
 function ForeverBagMoverPresets.Capture(positions, width, height)
     local snapshot = {version = 1, positions = {}}
     for key, position in pairs(positions) do
         if ValidKey(key) and type(position) == "table" and Finite(position.x) and Finite(position.y) then
-            snapshot.positions[key] = {x = position.x / width, y = position.y / height}
+            snapshot.positions[key] = {x = position.x / width, y = position.y / height,
+                glue = CopyGlue(position.glue)}
         end
     end
     return snapshot
@@ -29,6 +37,7 @@ function ForeverBagMoverPresets.Restore(snapshot, width, height)
             positions[key] = {
                 x = math.max(0, math.min(1, position.x)) * width,
                 y = math.max(0, math.min(1, position.y)) * height,
+                glue = CopyGlue(position.glue),
             }
         else
             return nil

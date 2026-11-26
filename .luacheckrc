@@ -8,10 +8,11 @@ globals = {
     "SLASH_FOREVERBAGMOVER1", "SlashCmdList",
 }
 read_globals = {
-    "BagItemAutoSortButton", "BagItemSearchBox", "C_Container", "C_Item",
+    "BagItemAutoSortButton", "BagItemSearchBox", "C_Container", "C_Item", "C_Timer",
+    "CloseBag", "OpenBag", "ToggleKeyRing",
     "ContainerFrameCombinedBags", "CreateFrame", "DEFAULT_CHAT_FRAME",
     "GameTooltip", "GetCursorPosition", "GetItemInfoInstant", "GetRealmName",
-    "hooksecurefunc", "InCombatLockdown", "IsAltKeyDown", "Minimap",
+    "hooksecurefunc", "InCombatLockdown", "IsAltKeyDown", "KEYRING_CONTAINER", "Minimap",
     "NUM_CONTAINER_FRAMES", "NUM_TOTAL_BAG_FRAMES", "OpenAllBags",
     "OpenBackpack", "UIParent", "UnitName", "UpdateContainerFrameAnchors",
 }

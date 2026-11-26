@@ -1,3 +1,14 @@
+# Unreleased
+
+- Bags touching the combined backpack, such as the reagent bag, are now glued
+  to it: they move with it, follow it when it is resized, and stay attached
+  after a reload or relog. Presets and character copies keep the glue. Drag a
+  bag away from the backpack to unglue it.
+- The key ring can now be moved and saved like any other bag, and can be glued
+  to the combined backpack too.
+- New **Key ring with bags** setting (Arrange panel or `/fbm keyring on|off`):
+  opens the key ring with your bags and closes it with them. Off by default.
+
 # 0.8.0 - 2026-11-11
 
 - New minimap button: click the bag icon at the lower-left edge of the minimap

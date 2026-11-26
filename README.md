@@ -80,6 +80,16 @@ character, works in combat, and `/fbm` still opens the panel while it is hidden.
 - **Group:** Drag any bag to move all currently open bags together. Relative
   spacing stays unchanged, and movement stops at screen boundaries. Group
   dragging does not snap. Closed bags are not moved.
+- **Glue to the combined bag:** Any bag touching the combined backpack, such
+  as the reagent bag, is glued to it. It moves with the backpack, follows it
+  when the backpack is resized or changes size, and stays attached after a
+  reload. Drag the bag away to unglue it, or back against the backpack to glue
+  it again. This also works with **Always movable**, and presets keep it.
+- **Key ring:** The key ring can be moved and saved like any other bag.
+- **Key ring with bags:** Turn this on in the panel (or with
+  `/fbm keyring on|off`) to open the key ring along with your backpack or
+  combined bag and close it when they close. Off by default; saves per
+  character immediately. In combat it waits and catches up once combat ends.
 
 These tools change the preview only; Done saves and Cancel restores the prior
 layout. Snap, Group, and Gap preferences last for the current UI session.

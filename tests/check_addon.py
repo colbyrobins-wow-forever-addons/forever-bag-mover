@@ -641,6 +641,295 @@ def main() -> None:
     """)
     logging.basicConfig(level=logging.INFO)
     logging.info("Arrange-mode checks passed (mocked WoW APIs).")
+    check_glue_and_keyring()
+    logging.info("Glue and key ring checks passed (mocked WoW APIs).")
+
+
+def check_glue_and_keyring() -> None:
+    """Bags touching the combined bag follow it; the key ring is movable."""
+    runtime = LuaRuntime()
+    runtime.execute('''
+        frames = {}
+        function UnitName() return 'Tester' end
+        function GetRealmName() return 'Realm' end
+        function IsAltKeyDown() return altDown or false end
+        function InCombatLockdown() return combat or false end
+        local methods = {}
+        function methods:SetScript(name, fn) self.scripts[name] = fn end
+        function methods:HookScript(name, fn) self.scripts[name] = fn end
+        function methods:SetPoint(...) self.point = {...} end
+        function methods:IsShown() return self.shown end
+        function methods:Show()
+            local wasShown = self.shown
+            self.shown = true
+            if not wasShown and self.scripts.OnShow then self.scripts.OnShow(self) end
+        end
+        function methods:Hide()
+            local wasShown = self.shown
+            self.shown = false
+            if wasShown and self.scripts.OnHide then self.scripts.OnHide(self) end
+        end
+        function methods:GetFrameLevel() return 1 end
+        function methods:GetEffectiveScale() return self.scale or 1 end
+        function methods:SetScale(scale) self.scale = scale end
+        function methods:GetWidth() return self.width or 200 end
+        function methods:GetHeight() return self.height or 300 end
+        -- Bag frames report the corner they were anchored to, like the client.
+        function methods:GetRight()
+            if self.bag and self.point and self.point[2] == UIParent then return self.point[4] end
+            return self.right or 800
+        end
+        function methods:GetTop()
+            if self.bag and self.point and self.point[2] == UIParent then return self.point[5] end
+            return self.top or 500
+        end
+        function methods:GetID() return self.id or 0 end
+        function methods:CreateTexture()
+            return setmetatable({scripts = {}, shown = true}, {__index = methods})
+        end
+        function methods:CreateFontString() return self end
+        function methods:SetHeight(height) self.height = height end
+        function methods:SetWidth(width) self.width = width end
+        function methods:GetText() return self.text or '' end
+        function methods:SetText(text) self.text = text end
+        function methods:GetFont() return 'font', 10, '' end
+        for _, name in ipairs({'SetSize', 'SetFrameStrata', 'SetMovable', 'SetFrameLevel',
+            'SetClampedToScreen', 'RegisterForDrag', 'SetAllPoints', 'SetFont', 'SetAlpha',
+            'SetColorTexture', 'ClearAllPoints', 'StartMoving', 'IsProtected',
+            'RegisterForClicks', 'SetHighlightTexture', 'SetTexCoord', 'AddLine',
+            'StopMovingOrSizing', 'RegisterEvent', 'SetAutoFocus', 'SetMaxLetters',
+            'ClearFocus', 'SetTexture'}) do
+            methods[name] = function() end
+        end
+        function CreateFrame(kind, name)
+            local frame = setmetatable({scripts = {}, shown = true}, {__index = methods})
+            if name then _G[name] = frame end
+            table.insert(frames, frame)
+            return frame
+        end
+        GameTooltip = CreateFrame()
+        function GameTooltip:SetOwner(owner) self.owner = owner end
+        function GameTooltip:IsOwned(owner) return self.owner == owner end
+        UIParent = CreateFrame()
+        UIParent.width, UIParent.height = 1920, 1080
+        local function Bag(id, width, height)
+            local frame = CreateFrame()
+            frame.bag, frame.id, frame.width, frame.height = true, id, width, height
+            return frame
+        end
+        ContainerFrameCombinedBags = Bag(0, 400, 500)
+        ContainerFrame1 = Bag(5, 200, 200) -- reagent bag
+        ContainerFrame2 = Bag(-2, 150, 100) -- key ring
+        NUM_CONTAINER_FRAMES = 2
+        addonFrameStart = #frames
+        DEFAULT_CHAT_FRAME = {AddMessage = function() end}
+        SlashCmdList = {}
+        -- Blizzard's default: combined at the lower right, reagent bag stacked
+        -- on top of it, key ring stacked on top of that.
+        function UpdateContainerFrameAnchors()
+            local combined = ContainerFrameCombinedBags
+            combined.right, combined.top = 1800, combined.height + 100
+            combined:SetPoint('BOTTOMRIGHT', 'DEFAULT')
+            ContainerFrame1.right, ContainerFrame1.top = combined:GetRight(),
+                combined:GetTop() + 3 + ContainerFrame1.height
+            ContainerFrame1:SetPoint('BOTTOMRIGHT', combined, 'TOPRIGHT')
+            ContainerFrame2.right, ContainerFrame2.top = ContainerFrame1:GetRight(),
+                ContainerFrame1:GetTop() + 3 + ContainerFrame2.height
+            ContainerFrame2:SetPoint('BOTTOMRIGHT', ContainerFrame1, 'TOPRIGHT')
+        end
+        function hooksecurefunc(target, name, callback)
+            if type(target) == 'string' then
+                local original = _G[target]
+                _G[target] = function(...) original(...) name(...) end
+            else
+                local original = target[name]
+                target[name] = function(...) original(...) callback(...) end
+            end
+        end
+    ''')
+    for name in ("Layout", "Presets", "Filters"):
+        runtime.execute((ROOT / f"ForeverBagMover/{name}.lua").read_text())
+    runtime.execute(
+        (ROOT / "ForeverBagMover/ForeverBagMover.lua").read_text(),
+        "ForeverBagMover",
+    )
+    runtime.execute('''
+        local geometry = ForeverBagMoverLayout
+        local anchor = {x = 1000, y = 700, w = 400, h = 500}
+        local above = {x = 1000, y = 908, w = 200, h = 200}
+        assert(geometry.Touching(above, anchor, 12))
+        assert(not geometry.Touching({x = 1000, y = 950, w = 200, h = 200}, anchor, 12),
+            'A bag farther than the tolerance is not touching')
+        assert(not geometry.Touching({x = 1210, y = 910, w = 200, h = 200}, anchor, 12),
+            'Corner-only contact is not touching')
+        local glue = geometry.Glue(above, anchor, 12)
+        assert(glue.h == 'right' and glue.v == 'top' and glue.dx == 0 and glue.dy == 208)
+        glue = geometry.Glue({x = 592, y = 700, w = 200, h = 200}, anchor, 12)
+        assert(glue.h == 'left' and glue.v == 'top' and glue.dx == -8 and glue.dy == 0,
+            'A bag on the left follows the left edge')
+        glue = geometry.Glue({x = 800, y = 192, w = 200, h = 200}, anchor, 12)
+        assert(glue.h == 'left' and glue.v == 'bottom' and glue.dy == -8,
+            'A left-aligned bag below follows the left and bottom edges')
+        local taller = {x = 1000, y = 700, w = 400, h = 600}
+        local x, y = geometry.GluedPosition(glue, taller)
+        assert(x == 800 and y == 92, 'Glued bag stays below a taller combined bag')
+        assert(geometry.ValidGlue(glue) and not geometry.ValidGlue({h = 'up', v = 'top', dx = 0, dy = 0})
+            and not geometry.ValidGlue({h = 'left', v = 'top', dx = 0 / 0, dy = 0}))
+
+        local presets = ForeverBagMoverPresets
+        local snapshot = presets.Capture({combined = {x = 960, y = 540},
+            bag5 = {x = 960, y = 748, glue = {h = 'right', v = 'top', dx = 0, dy = 208}},
+            keyring = {x = 100, y = 200}}, 1920, 1080)
+        assert(snapshot.positions.keyring, 'Presets keep the key ring')
+        local restored = presets.Restore(snapshot, 1920, 1080)
+        assert(restored.bag5.glue.dy == 208, 'Glue offsets are kept in UI pixels')
+        assert(restored.keyring.x == 100 and restored.keyring.glue == nil)
+        snapshot.positions.bag5.glue = {h = 'nope'}
+        assert(presets.Restore(snapshot, 1920, 1080).bag5.glue == nil, 'Invalid glue is dropped')
+    ''')
+    runtime.execute('''
+        ForeverBagMoverDB = {freeMove = true}
+        local events = frames[addonFrameStart + 1]
+        events.scripts.OnEvent(events, 'ADDON_LOADED', 'ForeverBagMover')
+        events.scripts.OnEvent(events, 'PLAYER_LOGIN')
+        UpdateContainerFrameAnchors()
+        local function HandleFor(bag)
+            for _, frame in ipairs(frames) do
+                if frame.toggle and frame.toggle.point and frame.toggle.point[2] == bag then return frame end
+            end
+        end
+        local combinedHandle = HandleFor(ContainerFrameCombinedBags)
+        local reagentHandle = HandleFor(ContainerFrame1)
+        local keyringHandle = HandleFor(ContainerFrame2)
+        local function Drag(handle, inset, x, y)
+            handle.right, handle.top = x - inset, y - 4
+            handle.scripts.OnDragStart(handle)
+            handle.scripts.OnUpdate(handle)
+            handle.scripts.OnDragStop(handle)
+        end
+        local positions = ForeverBagMoverDB.positions
+        assert(ContainerFrame1.point[2] == ContainerFrameCombinedBags, 'Blizzard stacks the reagent bag')
+
+        -- Moving the combined bag brings the reagent bag Blizzard stacked on it.
+        altDown = true
+        Drag(combinedHandle, 52, 1000, 700)
+        assert(positions.combined.x == 1000 and positions.combined.y == 700)
+        assert(positions.bag5.glue and positions.bag5.glue.v == 'top', 'Reagent bag is glued')
+        assert(ContainerFrame1.point[4] == 1000 and ContainerFrame1.point[5] == 903,
+            'Reagent bag moved with the combined bag')
+        assert(positions.keyring and not positions.keyring.glue,
+            'A bag touching only the reagent bag is not glued')
+        Drag(combinedHandle, 52, 1200, 800)
+        assert(ContainerFrame1.point[4] == 1200 and ContainerFrame1.point[5] == 1003)
+
+        -- Place the reagent bag below the combined bag; it stays there even
+        -- when the combined bag grows on a later open.
+        Drag(reagentHandle, 30, 1200, 800 - 500 - 8)
+        assert(positions.bag5.glue.v == 'bottom' and positions.bag5.glue.dy == -8)
+        ContainerFrameCombinedBags:Hide()
+        ContainerFrame1:Hide()
+        ContainerFrameCombinedBags.height = 550
+        ContainerFrameCombinedBags:Show()
+        ContainerFrame1:Show()
+        UpdateContainerFrameAnchors()
+        assert(ContainerFrameCombinedBags.point[4] == 1200 and ContainerFrameCombinedBags.point[5] == 800)
+        assert(ContainerFrame1.point[2] == UIParent and ContainerFrame1.point[5] == 800 - 550 - 8,
+            'Glued bag is placed against the restored combined bag')
+
+        -- Glue survives a reload of saved variables.
+        events.scripts.OnEvent(events, 'ADDON_LOADED', 'ForeverBagMover')
+        assert(ForeverBagMoverDB.positions.bag5.glue.v == 'bottom', 'Saved glue survives reload')
+        assert(ForeverBagMoverSharedDB.characters['Tester - Realm'].positions.bag5.glue,
+            'Character copy includes glue')
+
+        -- Dragging the reagent bag away unglues it.
+        positions = ForeverBagMoverDB.positions
+        Drag(reagentHandle, 30, 500, 900)
+        assert(positions.bag5.glue == nil)
+        Drag(combinedHandle, 52, 1300, 700)
+        assert(ContainerFrame1.point[4] == 500 and ContainerFrame1.point[5] == 900,
+            'Unglued bag stays put')
+
+        -- Glued bags keep their last spot while the combined bag is closed.
+        Drag(reagentHandle, 30, 1300, 908)
+        assert(positions.bag5.glue)
+        ContainerFrameCombinedBags:Hide()
+        ContainerFrame1:SetPoint('DEFAULT')
+        assert(ContainerFrame1.point[4] == 1300 and ContainerFrame1.point[5] == 908)
+        ContainerFrameCombinedBags:Show()
+
+        -- The key ring is a movable bag with its own saved position.
+        Drag(keyringHandle, 30, 400, 300)
+        assert(positions.keyring.x == 400 and positions.keyring.y == 300)
+        assert(ContainerFrame2.point[4] == 400 and ContainerFrame2.point[5] == 300)
+        ContainerFrame2:SetPoint('DEFAULT')
+        assert(ContainerFrame2.point[4] == 400, 'Key ring position is re-applied')
+        Drag(keyringHandle, 30, 1300 - 400 - 8, 700)
+        assert(positions.keyring.glue and positions.keyring.glue.h == 'left',
+            'The key ring can be glued to the combined bag too')
+        altDown = false
+
+        -- Presets saved in arrange mode keep the glue.
+        SlashCmdList.FOREVERBAGMOVER('')
+        ForeverBagMoverPresetName:SetText('Glued')
+        ForeverBagMoverSavePreset.scripts.OnClick()
+        local preset = ForeverBagMoverSharedDB.presets.Glued
+        assert(preset.positions.bag5.glue and preset.positions.keyring.glue)
+        SlashCmdList.FOREVERBAGMOVER('cancel')
+        -- Key ring with bags: opt-in, opens and closes with the combined bag.
+        assert(ForeverBagMoverDB.keyringWithBags == false, 'Off by default')
+        local toggles = 0
+        function ToggleKeyRing() toggles = toggles + 1 ContainerFrame2:Show() end
+        function CloseBag(id) assert(id == -2) ContainerFrame2:Hide() end
+        ContainerFrameCombinedBags:Hide()
+        ContainerFrame2:Hide()
+        ContainerFrameCombinedBags:Show()
+        assert(not ContainerFrame2:IsShown() and toggles == 0, 'Off leaves the key ring alone')
+        SlashCmdList.FOREVERBAGMOVER('keyring on')
+        assert(ForeverBagMoverDB.keyringWithBags and toggles == 1 and ContainerFrame2:IsShown(),
+            'Turning it on opens the key ring beside open bags')
+        ContainerFrameCombinedBags:Hide()
+        assert(not ContainerFrame2:IsShown(), 'Key ring closes with the bags')
+        ContainerFrameCombinedBags:Show()
+        assert(ContainerFrame2:IsShown() and toggles == 2, 'Key ring opens with the bags')
+        ContainerFrame2:Hide()
+        events.scripts.OnEvent(events, 'BAG_UPDATE_DELAYED')
+        assert(not ContainerFrame2:IsShown() and toggles == 2,
+            'A key ring closed by hand stays closed until the bags reopen')
+        ContainerFrameCombinedBags:Hide()
+        ContainerFrameCombinedBags:Show()
+        assert(ContainerFrame2:IsShown() and toggles == 3)
+        combat = true
+        events.scripts.OnEvent(events, 'PLAYER_REGEN_DISABLED')
+        ContainerFrameCombinedBags:Hide()
+        assert(ContainerFrame2:IsShown(), 'Combat skips closing the key ring')
+        ContainerFrameCombinedBags:Show()
+        SlashCmdList.FOREVERBAGMOVER('keyring off')
+        assert(ForeverBagMoverDB.keyringWithBags, 'Setting cannot change in combat')
+        ContainerFrameCombinedBags:Hide()
+        combat = false
+        events.scripts.OnEvent(events, 'PLAYER_REGEN_ENABLED')
+        assert(not ContainerFrame2:IsShown(), 'Leaving combat closes the key ring with the bags')
+        events.scripts.OnEvent(events, 'ADDON_LOADED', 'ForeverBagMover')
+        assert(ForeverBagMoverDB.keyringWithBags == true, 'Setting survives reload')
+        ContainerFrameCombinedBags:Show()
+        SlashCmdList.FOREVERBAGMOVER('')
+        local button = ForeverBagMoverKeyringWithBags
+        assert(button.text == 'Key ring with bags: On')
+        button.scripts.OnClick()
+        assert(ForeverBagMoverDB.keyringWithBags == false and button.text == 'Key ring with bags: Off')
+        SlashCmdList.FOREVERBAGMOVER('cancel')
+        assert(ForeverBagMoverDB.keyringWithBags == false, 'Setting saves immediately, including Cancel')
+        local opened = toggles
+        ContainerFrameCombinedBags:Hide()
+        ContainerFrameCombinedBags:Show()
+        assert(toggles == opened, 'Turned off, bags open without the key ring')
+        SlashCmdList.FOREVERBAGMOVER('keyring')
+        assert(ForeverBagMoverDB.keyringWithBags == true, 'Bare /fbm keyring toggles')
+        ForeverBagMoverDB.keyringWithBags = 'yes'
+        events.scripts.OnEvent(events, 'ADDON_LOADED', 'ForeverBagMover')
+        assert(ForeverBagMoverDB.keyringWithBags == false, 'Invalid saved value resets to off')
+    ''')
 
 
 if __name__ == "__main__":

@@ -51,11 +51,16 @@ local function AddControlBorder(control)
     end
 end
 
+local KEYRING_ID = KEYRING_CONTAINER or -2
+
 local function GetBagKey(frame)
     if frame == ContainerFrameCombinedBags then
         return "combined"
     end
     local id = frame.GetBagID and frame:GetBagID() or frame:GetID()
+    if id == KEYRING_ID then
+        return "keyring"
+    end
     if type(id) == "number" and id >= 0 and id <= (NUM_TOTAL_BAG_FRAMES or 5) then
         return "bag" .. id
     end
@@ -63,6 +68,11 @@ end
 
 local function Positions()
     return draftPositions or ForeverBagMoverDB.positions
+end
+
+-- Bags within this distance of the combined bag are glued to it.
+local function GlueTolerance()
+    return math.max(spacing, 8) + 4
 end
 
 -- Free move lets bags be dragged without arrange mode; drops save directly.
@@ -78,7 +88,9 @@ local function CopyPositions(source)
     local result = {}
     for key, position in pairs(source) do
         if type(position) == "table" then
-            result[key] = {x = position.x, y = position.y}
+            local glue = ForeverBagMoverLayout.ValidGlue(position.glue) and position.glue
+            result[key] = {x = position.x, y = position.y, glue = glue and
+                {h = glue.h, v = glue.v, dx = glue.dx, dy = glue.dy} or nil}
         end
     end
     return result
@@ -88,6 +100,43 @@ local function HasPosition(db)
     return type(db) == "table" and type(db.x) == "number" and type(db.y) == "number"
         and db.x == db.x and db.y == db.y
         and math.abs(db.x) < math.huge and math.abs(db.y) < math.huge
+end
+
+-- Keeps a bag's top-right corner on screen, given its scaled size.
+local function Clamp(x, y, width, height)
+    return math.min(UIParent:GetWidth(), math.max(width, x)),
+        math.min(UIParent:GetHeight() - 28, math.max(height, y))
+end
+
+-- Where the combined bag is (or will be) drawn, or nil while it is closed.
+local function CombinedRect()
+    local frame = ContainerFrameCombinedBags
+    if not frame or not frame:IsShown() then return nil end
+    local scale = frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
+    local width, height = frame:GetWidth() * scale, frame:GetHeight() * scale
+    local position = Positions().combined
+    if HasPosition(position) then
+        local x, y = Clamp(position.x, position.y, width, height)
+        return {x = x, y = y, w = width, h = height}
+    end
+    local right, top = frame:GetRight(), frame:GetTop()
+    if right and top then
+        return {x = right * scale, y = top * scale, w = width, h = height}
+    end
+end
+
+-- A bag's saved position. Glued bags follow the open combined bag; while it
+-- is closed they keep the last position they had beside it.
+local function Resolve(key)
+    local position = Positions()[key]
+    if not HasPosition(position) then return nil end
+    if key ~= "combined" and ForeverBagMoverLayout.ValidGlue(position.glue) then
+        local anchor = CombinedRect()
+        if anchor then
+            position.x, position.y = ForeverBagMoverLayout.GluedPosition(position.glue, anchor)
+        end
+    end
+    return position
 end
 
 local function BagScale(key)
@@ -106,19 +155,23 @@ local function ApplyPosition(frame)
         frame:SetScale(BagScale(key) / 100)
         applying = false
     end
-    local position = key and Positions()[key]
-    if not frame:IsShown() or not HasPosition(position) then
+    local position = key and frame:IsShown() and Resolve(key)
+    if not position then
         return
     end
     applying = true
     local scale = frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
-    local width = frame:GetWidth() * scale
-    local height = frame:GetHeight() * scale
-    local x = math.min(UIParent:GetWidth(), math.max(width, position.x))
-    local y = math.min(UIParent:GetHeight() - 28, math.max(height, position.y))
+    local x, y = Clamp(position.x, position.y, frame:GetWidth() * scale, frame:GetHeight() * scale)
     frame:ClearAllPoints()
     frame:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", x / scale, y / scale)
     applying = false
+    -- Whatever moved the combined bag, bring the bags glued to it along.
+    if key == "combined" then
+        for other in pairs(handles) do
+            local otherPosition = other ~= frame and Positions()[GetBagKey(other) or ""]
+            if otherPosition and otherPosition.glue then ApplyPosition(other) end
+        end
+    end
 end
 
 local function VisibleBags()
@@ -126,7 +179,7 @@ local function VisibleBags()
     for frame in pairs(handles) do
         local key = GetBagKey(frame)
         if key and frame:IsShown() then
-            local position = Positions()[key]
+            local position = Resolve(key)
             local right, top = frame:GetRight(), frame:GetTop()
             if HasPosition(position) or (right and top) then
                 local scale = frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
@@ -139,6 +192,23 @@ local function VisibleBags()
     end
     table.sort(bags, function(a, b) return a.key < b.key end)
     return bags
+end
+
+-- Re-glue every open bag that has a saved position: touching the combined bag
+-- glues it, anywhere else unglues it. Does nothing while the combined bag is
+-- closed, so separate-bag layouts keep their glue for the next time.
+local function UpdateGlue(positions, bags)
+    local anchor
+    for _, bag in ipairs(bags) do
+        if bag.key == "combined" then anchor = bag end
+    end
+    if not anchor then return end
+    for _, bag in ipairs(bags) do
+        local position = positions[bag.key]
+        if bag.key ~= "combined" and HasPosition(position) then
+            position.glue = ForeverBagMoverLayout.Glue(bag, anchor, GlueTolerance())
+        end
+    end
 end
 
 local function ShowGuides(x, y)
@@ -161,6 +231,33 @@ local function ShowGuides(x, y)
             guide:Show()
         elseif guide then guide:Hide() end
     end
+end
+
+local function ShownBag(key)
+    for frame in pairs(handles) do
+        if frame:IsShown() and GetBagKey(frame) == key then return frame end
+    end
+end
+
+-- Opt-in "Key ring with bags": the key ring opens with the backpack (or the
+-- combined bag) and closes with it. Skipped in combat, so addon code never
+-- opens or closes bag windows there; PLAYER_REGEN_ENABLED catches up.
+local function SyncKeyring()
+    if not ready or not ForeverBagMoverDB.keyringWithBags or InCombatLockdown() then return end
+    local keyring = ShownBag("keyring")
+    if ShownBag("bag0") or ShownBag("combined") then
+        if not keyring then
+            if ToggleKeyRing then ToggleKeyRing()
+            elseif OpenBag then OpenBag(KEYRING_ID) end
+        end
+    elseif keyring then
+        if CloseBag then CloseBag(KEYRING_ID) else keyring:Hide() end
+    end
+end
+
+-- Run after Blizzard finishes opening or closing bags, outside its call stack.
+local function SyncKeyringSoon()
+    if C_Timer and C_Timer.After then C_Timer.After(0, SyncKeyring) else SyncKeyring() end
 end
 
 local function Attach(frame)
@@ -344,7 +441,12 @@ local function Attach(frame)
         if not CanDrag() or InCombatLockdown() then return end
         local x = handle:GetRight() + (handle.rightInset or 30)
         local y = handle:GetTop() + 4
-        local bags = VisibleBags()
+        local bags = {}
+        for _, bag in ipairs(VisibleBags()) do
+            -- Bags glued to the combined bag move with it, so it must not snap to them.
+            local position = Positions()[bag.key]
+            if key ~= "combined" or not (position and position.glue) then table.insert(bags, bag) end
+        end
         local width, height = UIParent:GetWidth(), UIParent:GetHeight() - 28
         local scale = frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
         if handle.groupStart then
@@ -373,6 +475,7 @@ local function Attach(frame)
         if handle.dragging then
             handle:StopMovingOrSizing()
             SavePosition()
+            if CanDrag() and not InCombatLockdown() then UpdateGlue(Positions(), VisibleBags()) end
             handle.dragging = false
             handle.dragKey = nil
             handle.groupStart = nil
@@ -412,13 +515,19 @@ local function Attach(frame)
     end
     grip.StopResize = StopResize
     grip:SetScript("OnHide", StopResize)
-    grip:SetScript("OnDragStop", StopResize)
+    grip:SetScript("OnDragStop", function()
+        StopResize()
+        if draftPositions and not InCombatLockdown() then UpdateGlue(draftPositions, VisibleBags()) end
+    end)
     grip:SetScript("OnDragStart", function()
         local key = GetBagKey(frame)
         if not draftPositions or not key or InCombatLockdown() then return end
         StopDragging()
+        -- Pin bags still at Blizzard's default; keep glue so attached bags follow.
         for _, bag in ipairs(VisibleBags()) do
-            draftPositions[bag.key] = {x = bag.x, y = bag.y}
+            if not HasPosition(draftPositions[bag.key]) then
+                draftPositions[bag.key] = {x = bag.x, y = bag.y}
+            end
         end
         if not draftScales then
             draftScales = {}
@@ -486,6 +595,9 @@ local function Attach(frame)
                 end
             end
             for other in pairs(handles) do ApplyPosition(other) end
+            -- Blizzard stacks the reagent bag against the combined bag; keep
+            -- that (and any bag the player placed against it) attached.
+            UpdateGlue(Positions(), VisibleBags())
             self.groupStart = moveGroup and VisibleBags() or nil
             self.groupOrigin = CopyPositions(Positions())[key]
             self.dragKey = key
@@ -507,8 +619,14 @@ local function Attach(frame)
         grip:Hide()
         toggle:Hide()
         filter:Hide()
+        local key = GetBagKey(frame)
+        if key == "bag0" or key == "combined" then SyncKeyringSoon() end
     end)
-    frame:HookScript("OnShow", function() Refresh() end)
+    frame:HookScript("OnShow", function()
+        Refresh()
+        local key = GetBagKey(frame)
+        if key == "bag0" or key == "combined" then SyncKeyringSoon() end
+    end)
     -- Resync the drag handle/grip whenever this frame moves, and re-assert our
     -- saved position if something else (e.g. Blizzard's own deferred default
     -- placement) moves it out from under us. ApplyPosition is cheap and a no-op
@@ -720,6 +838,11 @@ events:SetScript("OnEvent", function(_, event, name)
                 end
             end
         end
+        for _, position in pairs(ForeverBagMoverDB.positions) do
+            if type(position) == "table" and not ForeverBagMoverLayout.ValidGlue(position.glue) then
+                position.glue = nil
+            end
+        end
         local savedScale = ForeverBagMoverDB.scale
         if type(savedScale) ~= "number" or savedScale ~= savedScale
             or savedScale < 50 or savedScale > 150 then
@@ -736,6 +859,7 @@ events:SetScript("OnEvent", function(_, event, name)
         ForeverBagMoverDB.minimapAngle =
             ForeverBagMoverLayout.ValidMinimapAngle(ForeverBagMoverDB.minimapAngle)
         ForeverBagMoverDB.hideMinimap = ForeverBagMoverDB.hideMinimap == true
+        ForeverBagMoverDB.keyringWithBags = ForeverBagMoverDB.keyringWithBags == true
         ForeverBagMoverDB.x = nil
         ForeverBagMoverDB.y = nil
         ready = true
@@ -745,6 +869,7 @@ events:SetScript("OnEvent", function(_, event, name)
         InstallHook()
         Refresh()
         CreateMinimapButton()
+        if event == "PLAYER_REGEN_ENABLED" then SyncKeyring() end
     end
 end)
 
@@ -847,6 +972,23 @@ local function SetMinimapHidden(hidden)
         or "Minimap icon shown.")
 end
 
+local keyringButton
+
+local function SetKeyringWithBags(enabled)
+    if not ready then return end
+    if InCombatLockdown() then
+        Message("Change key ring opening after leaving combat.")
+        return
+    end
+    ForeverBagMoverDB.keyringWithBags = enabled and true or false
+    if keyringButton then
+        keyringButton:SetText(enabled and "Key ring with bags: On" or "Key ring with bags: Off")
+    end
+    SyncKeyring()
+    Message(enabled and "The key ring now opens and closes with your bags."
+        or "The key ring no longer opens with your bags.")
+end
+
 local function SetFreeMove(enabled)
     if InCombatLockdown() then
         Message("Change free move after leaving combat.")
@@ -916,9 +1058,14 @@ local function CreatePanel()
         local name = ForeverBagMoverPresets.Name(nameBox:GetText())
         if not name then Message("Enter a preset name (1-40 characters; no | or control characters).") return end
         StopAllDragging()
+        -- Include visible bags still using Blizzard's default positioning, and
+        -- record which bags sit against the combined bag so the preset keeps them glued.
+        local bags = VisibleBags()
         local positions = CopyPositions(draftPositions)
-        -- Include visible bags still using Blizzard's default positioning.
-        for _, bag in ipairs(VisibleBags()) do positions[bag.key] = {x = bag.x, y = bag.y} end
+        for _, bag in ipairs(bags) do
+            if not HasPosition(positions[bag.key]) then positions[bag.key] = {x = bag.x, y = bag.y} end
+        end
+        UpdateGlue(positions, bags)
         ForeverBagMoverSharedDB.presets[name] = ForeverBagMoverPresets.Capture(
             positions, UIParent:GetWidth(), UIParent:GetHeight())
         presetChoice = name
@@ -959,6 +1106,7 @@ local function CreatePanel()
         end
         for key, position in pairs(result) do draftPositions[key] = position end
         Refresh()
+        UpdateGlue(draftPositions, VisibleBags())
     end
     AddButton("ForeverBagMoverRow", "Row", 12, function() Arrange("row") end, 140)
     AddButton("ForeverBagMoverColumn", "Column", 120, function() Arrange("column") end, 140)
@@ -987,7 +1135,12 @@ local function CreatePanel()
         FreeMove() and "Always movable: On" or "Always movable: Off", 12, function()
             SetFreeMove(not FreeMove())
         end, 46)
-    freeMoveButton:SetWidth(316)
+    freeMoveButton:SetWidth(154)
+    keyringButton = AddButton("ForeverBagMoverKeyringWithBags",
+        ForeverBagMoverDB.keyringWithBags and "Key ring with bags: On" or "Key ring with bags: Off", 174, function()
+            SetKeyringWithBags(not ForeverBagMoverDB.keyringWithBags)
+        end, 46)
+    keyringButton:SetWidth(154)
     buttonsVisibilityButton = AddButton("ForeverBagMoverButtonsVisibility",
         ForeverBagMoverDB.hideButtons and "Bag buttons: Hidden" or "Bag buttons: Shown", 12, function()
             SetButtonsHidden(not ForeverBagMoverDB.hideButtons)
@@ -1035,6 +1188,12 @@ SlashCmdList.FOREVERBAGMOVER = function(input)
         SetButtonsHidden(command == "buttons hide")
     elseif command == "minimap hide" or command == "minimap show" then
         SetMinimapHidden(command == "minimap hide")
+    elseif command == "keyring" or command == "keyring on" or command == "keyring off" then
+        if command == "keyring" then
+            SetKeyringWithBags(not ForeverBagMoverDB.keyringWithBags)
+        else
+            SetKeyringWithBags(command == "keyring on")
+        end
     elseif command == "free" or command == "free on" or command == "free off" then
         if command == "free" then
             SetFreeMove(not FreeMove())
@@ -1042,6 +1201,6 @@ SlashCmdList.FOREVERBAGMOVER = function(input)
             SetFreeMove(command == "free on")
         end
     else
-        Message("Commands: /fbm, /fbm done, /fbm cancel, /fbm reset, /fbm free [on|off], /fbm buttons [hide|show], /fbm minimap [hide|show]")
+        Message("Commands: /fbm, /fbm done, /fbm cancel, /fbm reset, /fbm free [on|off], /fbm keyring [on|off], /fbm buttons [hide|show], /fbm minimap [hide|show]")
     end
 end
